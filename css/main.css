@@ -5,6 +5,7 @@
   padding: 0;
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
 
 :root {
@@ -46,9 +47,12 @@ html, body {
   color: var(--text);
   min-height: 100vh;
   overflow-x: hidden;
+  overflow-y: auto;
   direction: rtl;
   -webkit-font-smoothing: antialiased;
-  overscroll-behavior: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: auto;
+  touch-action: pan-y;
 }
 
 body {
@@ -967,7 +971,7 @@ textarea::placeholder, .text-input::placeholder {
   justify-content: center;
 }
 
-/* ============ نوار ارسال چت — بالای نوار پایین ============ */
+/* ============ نوار ارسال چت ============ */
 .chat-input-bar {
   position: fixed;
   bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
@@ -995,7 +999,7 @@ body[data-theme="light"] .chat-input-bar {
   padding: 12px 18px;
   border: 1px solid var(--border);
   border-radius: 100px;
-    background: var(--bg-2);
+  background: var(--bg-2);
   color: var(--text);
   font-family: inherit;
   font-size: 15px;
