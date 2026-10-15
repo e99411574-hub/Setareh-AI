@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#6C5CE7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Setareh AI">
+<title>⭐ Setareh AI</title>
+
+<!-- فونت وزیرمتن -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
+<!-- Puter.js — هوش مصنوعی -->
+<script src="https://js.puter.com/v2/"></script>
+
+<!-- CSS -->
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+<!-- ============ نوار بالا ============ -->
+<header class="top-bar">
+  <div class="logo">
+    <span class="logo-icon">⭐</span>
+    <span class="logo-text">Setareh AI</span>
+  </div>
+  <button class="theme-btn" id="themeBtn" title="حالت شب">🌙</button>
+</header>
+
+<!-- ============ بخش اصلی (پنل‌ها) ============ -->
+<main class="app">
+
+  <!-- پنل ۱: ساخت عکس -->
+  <section id="view-image" class="view active">
+    <div class="panel-header">
+      <h1>🖼️ ساخت عکس</h1>
+      <p class="panel-sub">تصورت رو بنویس، عکسش رو بساز</p>
+    </div>
+
+    <div class="input-card">
+      <textarea id="imagePrompt" placeholder="مثلاً: یه گربه سفید که توی بارون نشسته، سبک انیمه" rows="3"></textarea>
+      <button class="btn-primary" id="imageBtn">
+        <span>✨</span>
+        <span>بساز</span>
+      </button>
+    </div>
+
+    <div id="imageResult" class="result-area"></div>
+  </section>
+
+  <!-- پنل ۲: ساخت ویدیو -->
+  <section id="view-video" class="view">
+    <div class="panel-header">
+      <h1>🎬 ساخت ویدیو</h1>
+      <p class="panel-sub">از متن یا عکس، ویدیو بساز</p>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-mode="text">📝 از متن</button>
+      <button class="tab" data-mode="image">🖼️ از عکس</button>
+    </div>
+
+    <div class="input-card" id="videoTextMode">
+      <textarea id="videoPrompt" placeholder="مثلاً: یه پرنده که روی دریا پرواز می‌کنه، غروب" rows="3"></textarea>
+    </div>
+
+    <div class="input-card" id="videoImageMode" style="display:none">
+      <label class="upload-area" for="videoImageInput">
+        <span class="upload-icon">📁</span>
+        <span>عکس رو انتخاب کن</span>
+        <input type="file" id="videoImageInput" accept="image/*" style="display:none">
+      </label>
+      <div id="videoImagePreview"></div>
+      <input type="text" id="videoImagePrompt" placeholder="توضیح بده چی توی عکس اتفاق بیفته (اختیاری)" class="text-input">
+    </div>
+
+    <button class="btn-primary" id="videoBtn">
+      <span>🎬</span>
+      <span>بساز</span>
+    </button>
+
+    <div id="videoResult" class="result-area"></div>
+  </section>
+
+  <!-- پنل ۳: ترکیب ویدیو -->
+  <section id="view-merge" class="view">
+    <div class="panel-header">
+      <h1>🎞️ ترکیب ویدیو</h1>
+      <p class="panel-sub">چند تا ویدیو رو بچسبون به هم</p>
+    </div>
+
+    <div class="input-card">
+      <label class="upload-area" for="mergeInput">
+        <span class="upload-icon">📁</span>
+        <span>ویدیوها رو انتخاب کن</span>
+        <input type="file" id="mergeInput" accept="video/*" multiple style="display:none">
+      </label>
+      <div id="mergePreview" class="merge-list"></div>
+      <button class="btn-primary" id="mergeBtn">
+        <span>🎞️</span>
+        <span>ترکیب کن</span>
+      </button>
+    </div>
+
+    <div id="mergeResult" class="result-area"></div>
+  </section>
+
+  <!-- پنل ۴: چت AI -->
+  <section id="view-chat" class="view">
+    <div class="panel-header">
+      <h1>💬 چت با هوش مصنوعی</h1>
+      <p class="panel-sub">هر سوالی داری بپرس</p>
+    </div>
+
+    <div class="chat-area" id="chatArea">
+      <div class="chat-msg ai">
+        <div class="chat-bubble">
+          سلام! 👋 من ستاره‌ام، دستیار هوشمندت.<br>
+          هر سوالی داری بپرس، کمکت می‌کنم! ✨
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input-bar">
+      <input type="text" id="chatInput" placeholder="پیامت رو بنویس..." onkeydown="if(event.key==='Enter')APP.sendChat()">
+      <button class="chat-send" onclick="APP.sendChat()">➤</button>
+    </div>
+  </section>
+
+  <!-- پنل ۵: اصلاح عکس -->
+  <section id="view-edit" class="view">
+    <div class="panel-header">
+      <h1>✏️ اصلاح عکس</h1>
+      <p class="panel-sub">عکست رو با هوش مصنوعی ویرایش کن</p>
+    </div>
+
+    <div class="input-card">
+      <label class="upload-area" for="editImageInput">
+        <span class="upload-icon">📁</span>
+        <span>عکس رو انتخاب کن</span>
+        <input type="file" id="editImageInput" accept="image/*" style="display:none">
+      </label>
+      <div id="editImagePreview"></div>
+      <textarea id="editPrompt" placeholder="مثلاً: این عکس رو به سبک انیمه تبدیل کن" rows="2"></textarea>
+      <button class="btn-primary" id="editBtn">
+        <span>✨</span>
+        <span>ویرایش کن</span>
+      </button>
+    </div>
+
+    <div id="editResult" class="result-area"></div>
+  </section>
+
+</main>
+
+<!-- ============ نوار پایین ============ -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" data-view="image">
+    <span class="nav-icon">🖼️</span>
+    <span class="nav-label">عکس</span>
+  </button>
+  <button class="nav-btn" data-view="video">
+    <span class="nav-icon">🎬</span>
+    <span class="nav-label">ویدیو</span>
+  </button>
+  <button class="nav-btn" data-view="merge">
+    <span class="nav-icon">🎞️</span>
+    <span class="nav-label">ترکیب</span>
+  </button>
+  <button class="nav-btn" data-view="chat">
+    <span class="nav-icon">💬</span>
+    <span class="nav-label">چت</span>
+  </button>
+  <button class="nav-btn" data-view="edit">
+    <span class="nav-icon">✏️</span>
+    <span class="nav-label">ویرایش</span>
+  </button>
+</nav>
+
+<!-- ============ Toast ============ -->
+<div id="toast" class="toast"></div>
+
+<!-- ============ اسکریپت‌ها ============ -->
+<script src="js/router.js"></script>
+<script src="js/image.js"></script>
+<script src="js/video.js"></script>
+<script src="js/merge.js"></script>
+<script src="js/chat.js"></script>
+<script src="js/edit.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+  </html>
