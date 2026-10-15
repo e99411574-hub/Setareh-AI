@@ -1,23 +1,30 @@
 // ===== js/app.js — راه‌اندازی Setareh AI =====
 
 var APP = {
-  version: '1.0.0',
+  version: '2.0.0',
 
   init: function() {
     this.initTheme();
-    ROUTER.init();
 
+    // دکمهٔ تم
     var themeBtn = document.getElementById('themeBtn');
     if (themeBtn) {
       themeBtn.addEventListener('click', this.toggleTheme.bind(this));
     }
 
-    if (typeof CHAT !== 'undefined' && CHAT.init) CHAT.init();
-    if (typeof IMAGE !== 'undefined' && IMAGE.init) IMAGE.init();
-    if (typeof VIDEO !== 'undefined' && VIDEO.init) VIDEO.init();
-    if (typeof MERGE !== 'undefined' && MERGE.init) MERGE.init();
-    if (typeof EDIT !== 'undefined' && EDIT.init) EDIT.init();
-    if (typeof TTS !== 'undefined' && TTS.init) TTS.init();
+    // راه‌اندازی چت
+    if (typeof CHAT !== 'undefined' && CHAT.init) {
+      CHAT.init();
+    }
+
+    // اگه سشن هست، پیام‌ها رو نشون بده
+    setTimeout(function() {
+      if (typeof CHAT !== 'undefined' && CHAT._history && CHAT._history.length) {
+        CHAT.renderHistory();
+      } else if (typeof CHAT !== 'undefined' && CHAT._showWelcome) {
+        CHAT._showWelcome();
+      }
+    }, 200);
 
     console.log('⭐ Setareh AI آماده — نسخه', this.version);
   },
@@ -67,91 +74,6 @@ var APP = {
     }
   },
 
-  // ============ لودینگ پویا با درصد ============
-  startLoading: function(containerId, options) {
-    options = options || {};
-    var el = document.getElementById(containerId);
-    if (!el) return null;
-
-    var title = options.title || 'در حال ساخت...';
-    var sub = options.sub || 'لطفاً صبر کن';
-    var duration = options.duration || 30000;
-    var maxReal = options.maxReal || 90;
-    var startTime = Date.now();
-    var percent = 0;
-    var fake = 0;
-    var finished = false;
-
-    el.innerHTML =
-      '<div class="loading">' +
-        '<div class="loading-dots">' +
-          '<span></span><span></span><span></span><span></span>' +
-        '</div>' +
-        '<div class="loading-text" id="' + containerId + '-title">' + title + '</div>' +
-        '<div class="loading-sub" id="' + containerId + '-sub">' + sub + '</div>' +
-        '<div class="progress-wrap">' +
-          '<div class="progress-bar">' +
-            '<div class="progress-fill" id="' + containerId + '-fill" style="width:0%"></div>' +
-          '</div>' +
-          '<div style="text-align:center;">' +
-            '<span class="progress-percent" id="' + containerId + '-pct">۰٪</span>' +
-          '</div>' +
-        '</div>' +
-      '</div>';
-
-    var fillEl = document.getElementById(containerId + '-fill');
-    var pctEl = document.getElementById(containerId + '-pct');
-    var titleEl = document.getElementById(containerId + '-title');
-    var subEl = document.getElementById(containerId + '-sub');
-
-    var interval = setInterval(function() {
-      if (finished) return;
-      var elapsed = Date.now() - startTime;
-      var ratio = elapsed / duration;
-
-      // هدف: هرچی زمان می‌گذره به maxReal نزدیک‌تر بشه
-      var target = Math.min(maxReal, ratio * maxReal);
-      if (fake > target) target = fake;
-
-      // انیمیشن نرم
-      percent += (target - percent) * 0.12;
-      if (percent > maxReal) percent = maxReal;
-
-      var display = Math.round(percent);
-      if (fillEl) fillEl.style.width = display + '%';
-      if (pctEl) pctEl.textContent = APP.toFa(display) + '٪';
-    }, 200);
-
-    return {
-      setTitle: function(t) { if (titleEl) titleEl.textContent = t; },
-      setSub: function(s) { if (subEl) subEl.textContent = s; },
-      setProgress: function(p) {
-        fake = Math.max(fake, p);
-        if (fake > maxReal) fake = maxReal;
-      },
-      finish: function() {
-        finished = true;
-        clearInterval(interval);
-        if (fillEl) fillEl.style.width = '100%';
-        if (pctEl) pctEl.textContent = '۱۰۰٪';
-      },
-      stop: function() {
-        finished = true;
-        clearInterval(interval);
-      }
-    };
-  },
-
-  // ============ نمایش خطا ============
-  showError: function(containerId, text) {
-    var el = document.getElementById(containerId);
-    if (!el) return;
-    el.innerHTML = '<div style="padding:30px 20px;text-align:center;">' +
-      '<div style="font-size:32px;margin-bottom:12px;">⚠️</div>' +
-      '<div style="color:var(--danger);font-weight:700;font-size:15px;line-height:1.6;">' + text + '</div>' +
-      '</div>';
-  },
-
   // ============ دانلود ============
   downloadFile: function(url, filename) {
     try {
@@ -170,26 +92,7 @@ var APP = {
     }
   },
 
-  // ============ کپی URL ============
-  copyUrl: function(url) {
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(url).then(function() {
-        APP.toast('✅ لینک کپی شد');
-      }).catch(function() {
-        APP.toast('❌ خطا در کپی');
-      });
-    } else {
-      this.toast('❌ مرورگر پشتیبانی نمی‌کند');
-    }
-  },
-
-  // ============ تبدیل عدد به فارسی ============
-  toFa: function(n) {
-    var fa = ['۰','۱','۲','۳','۴','۵','۶','۷','۸','۹'];
-    return String(n).replace(/\d/g, function(d) { return fa[+d]; });
-  },
-
-  // ============ Escape ============
+  // ============ escape ============
   esc: function(s) {
     if (!s) return '';
     return String(s).replace(/[&<>"']/g, function(c) {
@@ -198,7 +101,7 @@ var APP = {
   }
 };
 
-// ============ راه‌اندازی خودکار ============
+// ============ راه‌اندازی ============
 window.addEventListener('DOMContentLoaded', function() {
   try { APP.init(); } catch (e) { console.error('APP init error:', e); }
 });
