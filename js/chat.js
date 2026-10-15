@@ -3,7 +3,7 @@
    مدیریت چت، سشن‌ها، پیام‌ها و Puter.js
    ═══════════════════════════════════════════════════ */
 
-const CHAT = {
+window.CHAT = {
   /* ─── State ─── */
   sessions: [],
   currentId: null,
@@ -194,16 +194,13 @@ const CHAT = {
     wrap.className = 'msg ' + (isUser ? 'user' : 'ai');
     wrap.dataset.id = msg.id;
 
-    /* آواتار */
     const avatar = document.createElement('div');
     avatar.className = 'msg-avatar';
     avatar.textContent = isUser ? '👤' : 'س';
 
-    /* بدنه */
     const body = document.createElement('div');
     body.className = 'msg-body';
 
-    /* متا */
     const meta = document.createElement('div');
     meta.className = 'msg-meta';
     const name = document.createElement('span');
@@ -214,7 +211,6 @@ const CHAT = {
     meta.appendChild(name);
     meta.appendChild(time);
 
-    /* محتوا */
     const content = document.createElement('div');
     content.className = 'msg-content';
     this.renderContent(content, msg);
@@ -222,7 +218,6 @@ const CHAT = {
     body.appendChild(meta);
     body.appendChild(content);
 
-    /* اکشن‌ها */
     if (!msg.pending) {
       body.appendChild(this.buildActions(msg));
     }
@@ -235,7 +230,6 @@ const CHAT = {
   renderContent(container, msg) {
     container.innerHTML = '';
 
-    /* عکس تولیدشده */
     if (msg.image) {
       const img = document.createElement('img');
       img.src = msg.image;
@@ -244,7 +238,6 @@ const CHAT = {
       container.appendChild(img);
     }
 
-    /* پیوست کاربر (عکس/ویدیو) */
     if (msg.attachment) {
       if (msg.attachment.type === 'image') {
         const img = document.createElement('img');
@@ -259,7 +252,6 @@ const CHAT = {
       }
     }
 
-    /* متن */
     if (msg.pending) {
       const typing = document.createElement('div');
       typing.className = 'typing';
@@ -279,7 +271,6 @@ const CHAT = {
     const actions = document.createElement('div');
     actions.className = 'msg-actions';
 
-    /* کپی */
     const copyBtn = document.createElement('button');
     copyBtn.className = 'msg-action';
     copyBtn.innerHTML = `
@@ -291,7 +282,6 @@ const CHAT = {
     copyBtn.onclick = () => this.copyMessage(msg.content);
     actions.appendChild(copyBtn);
 
-    /* فقط برای پیام کاربر: ویرایش */
     if (msg.role === 'user') {
       const editBtn = document.createElement('button');
       editBtn.className = 'msg-action';
@@ -305,7 +295,6 @@ const CHAT = {
       actions.appendChild(editBtn);
     }
 
-    /* فقط برای پیام AI: بازتولید */
     if (msg.role === 'assistant') {
       const regenBtn = document.createElement('button');
       regenBtn.className = 'msg-action';
@@ -375,7 +364,6 @@ const CHAT = {
 
       item.onclick = () => this.switchSession(s.id);
 
-      /* پین با double-click */
       item.ondblclick = (e) => {
         e.preventDefault();
         this.togglePin(s.id);
@@ -410,10 +398,6 @@ const CHAT = {
     });
   },
 
-  /* ═══════════════════════════════════════════════════
-     Helpers
-     ═══════════════════════════════════════════════════ */
-
   formatTime(ts) {
     if (!ts) return '';
     const d = new Date(ts);
@@ -429,21 +413,13 @@ const CHAT = {
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
 
-    /* code block */
     html = html.replace(/```([\s\S]*?)```/g, (_, code) =>
       `<pre><code>${code.trim()}</code></pre>`
     );
 
-    /* inline code */
     html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-
-    /* bold */
     html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-
-    /* italic */
     html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-
-    /* line breaks */
     html = html.replace(/\n/g, '<br/>');
 
     return html;
@@ -465,7 +441,6 @@ const CHAT = {
     if (ov) ov.classList.remove('show');
   },
 
-  /* placeholder برای قسمت ۲ */
   bindEvents() {},
   sendMessage() {},
   copyMessage() {},
@@ -477,17 +452,14 @@ const CHAT = {
    CHAT — بخش ۲: ارسال، Puter، رویدادها
    ═══════════════════════════════════════════════════ */
 
-Object.assign(CHAT, {
+Object.assign(window.CHAT, {
 
-  /* ─── رویدادها ─── */
   bindEvents() {
     const { inputBox, sendBtn, newChatBtn, attachBtn, micBtn, fileInput,
             copyAllBtn, exportBtn, chatSearch } = this.el;
 
-    /* ارسال */
     if (sendBtn) sendBtn.onclick = () => this.handleSend();
 
-    /* Enter = ارسال، Shift+Enter = خط جدید */
     if (inputBox) {
       inputBox.addEventListener('input', () => {
         this.autoResize();
@@ -501,27 +473,20 @@ Object.assign(CHAT, {
       });
     }
 
-    /* چت جدید */
     if (newChatBtn) newChatBtn.onclick = () => {
       this.createSession();
       this.closeSidebar();
       setTimeout(() => inputBox && inputBox.focus(), 200);
     };
 
-    /* پیوست */
     if (attachBtn) attachBtn.onclick = () => fileInput && fileInput.click();
     if (fileInput) fileInput.onchange = (e) => this.handleAttach(e);
 
-    /* ضبط صدا */
     if (micBtn) micBtn.onclick = () => this.toggleMic();
 
-    /* کپی کل گفتگو */
     if (copyAllBtn) copyAllBtn.onclick = () => this.copyAll();
-
-    /* خروجی PDF */
     if (exportBtn) exportBtn.onclick = () => this.exportPDF();
 
-    /* جستجو */
     if (chatSearch) {
       chatSearch.oninput = (e) => {
         this.searchQuery = e.target.value;
@@ -529,15 +494,10 @@ Object.assign(CHAT, {
       };
     }
 
-    /* ویرایش عنوان با دابل‌کلیک */
     if (this.el.headerTitle) {
       this.el.headerTitle.ondblclick = () => this.startRenameTitle();
     }
   },
-
-  /* ═══════════════════════════════════════════════════
-     ارسال پیام
-     ═══════════════════════════════════════════════════ */
 
   handleSend() {
     const text = (this.el.inputBox?.value || '').trim();
@@ -558,7 +518,6 @@ Object.assign(CHAT, {
     const s = this.getCurrentSession();
     if (!s) return;
 
-    /* پیام کاربر */
     const userMsg = {
       id: 'm_' + Date.now(),
       role: 'user',
@@ -569,7 +528,6 @@ Object.assign(CHAT, {
     s.messages.push(userMsg);
     s.updatedAt = Date.now();
 
-    /* عنوان خودکار */
     if (s.title === 'چت جدید' && text) {
       s.title = text.slice(0, 32) + (text.length > 32 ? '…' : '');
     }
@@ -580,7 +538,6 @@ Object.assign(CHAT, {
     this.renderMessages();
     this.renderChatList();
 
-    /* پیام در حال تایپ */
     const pendingMsg = {
       id: 'p_' + Date.now(),
       role: 'assistant',
@@ -595,7 +552,6 @@ Object.assign(CHAT, {
     this.updateSendState();
 
     try {
-      /* بررسی درخواست ساخت عکس */
       const wantsImage = /(عکس|تصویر|نقاشی|بکش|بساز.*عکس|image|draw|paint)/i.test(text);
 
       if (wantsImage && !attachment) {
@@ -617,29 +573,13 @@ Object.assign(CHAT, {
     this.updateSendState();
   },
 
-  /* ═══════════════════════════════════════════════════
-     تولید متن با Puter
-     ═══════════════════════════════════════════════════ */
-
   async generateText(prompt, attachment, pendingMsg) {
-    /* تاریخچه برای context */
-    const s = this.getCurrentSession();
-    const history = s.messages
-      .filter(m => !m.pending && m.content && !m.image)
-      .slice(-10)
-      .map(m => ({
-        role: m.role === 'assistant' ? 'assistant' : 'user',
-        content: m.content,
-      }));
-
     let finalPrompt = prompt;
 
-    /* اگه پیوست عکس داره */
     if (attachment && attachment.type === 'image') {
       finalPrompt = `[کاربر یک عکس پیوست کرده]\n\n${prompt || 'این عکس رو توضیح بده'}`;
     }
 
-    /* فراخوانی Puter */
     const response = await puter.ai.chat(finalPrompt, {
       model: 'gpt-5-nano',
     });
@@ -658,12 +598,7 @@ Object.assign(CHAT, {
     pendingMsg.content = text || 'پاسخی دریافت نشد.';
   },
 
-  /* ═══════════════════════════════════════════════════
-     ساخت عکس با Puter
-     ═══════════════════════════════════════════════════ */
-
   async generateImage(prompt, pendingMsg) {
-    /* پاک‌سازی prompt */
     const cleanPrompt = prompt
       .replace(/(یه|یک)\s*عکس\s*(از|با)?/g, '')
       .replace(/(بساز|بکش|درست کن)/g, '')
@@ -693,7 +628,6 @@ Object.assign(CHAT, {
     pendingMsg.image = imgUrl;
     pendingMsg.content = '✨ اینم تصویری که خواستی:';
 
-    /* ذخیره در گالری */
     this.saveToGallery(imgUrl, cleanPrompt);
   },
 
@@ -707,10 +641,6 @@ Object.assign(CHAT, {
     }
   },
 
-  /* ═══════════════════════════════════════════════════
-     ویرایش پیام
-     ═══════════════════════════════════════════════════ */
-
   editMessage(msg) {
     const s = this.getCurrentSession();
     if (!s) return;
@@ -718,22 +648,16 @@ Object.assign(CHAT, {
     const idx = s.messages.findIndex(m => m.id === msg.id);
     if (idx === -1) return;
 
-    /* حذف پیام‌های بعد از این پیام */
     s.messages.splice(idx);
     this.saveSessions();
     this.renderMessages();
     this.renderChatList();
 
-    /* برگرداندن متن به input */
     this.el.inputBox.value = msg.content || '';
     this.autoResize();
     this.updateSendState();
     this.el.inputBox.focus();
   },
-
-  /* ═══════════════════════════════════════════════════
-     بازتولید پاسخ
-     ═══════════════════════════════════════════════════ */
 
   async regenerate(aiMsg) {
     if (this.isGenerating) return;
@@ -744,20 +668,13 @@ Object.assign(CHAT, {
     const idx = s.messages.findIndex(m => m.id === aiMsg.id);
     if (idx <= 0) return;
 
-    /* پیام کاربر قبلش */
     const userMsg = s.messages[idx - 1];
     if (!userMsg || userMsg.role !== 'user') return;
 
-    /* حذف AI و بعدی‌ها */
     s.messages.splice(idx);
 
-    /* ارسال مجدد */
     this.sendMessage(userMsg.content, userMsg.attachment);
   },
-
-  /* ═══════════════════════════════════════════════════
-     کپی
-     ═══════════════════════════════════════════════════ */
 
   async copyMessage(text) {
     if (!text) return;
@@ -792,10 +709,6 @@ Object.assign(CHAT, {
       this.toast('❌ کپی نشد');
     }
   },
-
-  /* ═══════════════════════════════════════════════════
-     خروجی PDF (چاپ)
-     ═══════════════════════════════════════════════════ */
 
   exportPDF() {
     const s = this.getCurrentSession();
@@ -848,10 +761,6 @@ Object.assign(CHAT, {
     win.document.close();
   },
 
-  /* ═══════════════════════════════════════════════════
-     تغییر نام چت
-     ═══════════════════════════════════════════════════ */
-
   startRenameTitle() {
     const el = this.el.headerTitle;
     if (!el) return;
@@ -863,7 +772,6 @@ Object.assign(CHAT, {
     el.textContent = s.title;
     el.focus();
 
-    /* انتخاب همه متن */
     const range = document.createRange();
     range.selectNodeContents(el);
     const sel = window.getSelection();
@@ -889,10 +797,6 @@ Object.assign(CHAT, {
     };
   },
 
-  /* ═══════════════════════════════════════════════════
-     پیوست فایل
-     ═══════════════════════════════════════════════════ */
-
   handleAttach(e) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -906,7 +810,6 @@ Object.assign(CHAT, {
         name: file.name,
       }];
 
-      /* نمایش در input */
       const preview = type === 'image'
         ? `📷 [تصویر: ${file.name}] `
         : `🎬 [ویدیو: ${file.name}] `;
@@ -917,10 +820,6 @@ Object.assign(CHAT, {
     reader.readAsDataURL(file);
     e.target.value = '';
   },
-
-  /* ═══════════════════════════════════════════════════
-     ضبط صدا (ساده)
-     ═══════════════════════════════════════════════════ */
 
   async toggleMic() {
     if (this._recording) {
@@ -972,10 +871,6 @@ Object.assign(CHAT, {
     rec.start();
   },
 
-  /* ═══════════════════════════════════════════════════
-     ابزارها
-     ═══════════════════════════════════════════════════ */
-
   autoResize() {
     const t = this.el.inputBox;
     if (!t) return;
@@ -990,10 +885,6 @@ Object.assign(CHAT, {
     const has = t.value.trim().length > 0 || this.attachments.length > 0;
     btn.disabled = !has || this.isGenerating;
   },
-
-  /* ═══════════════════════════════════════════════════
-     حذف با مودال
-     ═══════════════════════════════════════════════════ */
 
   confirmDelete(id) {
     const modal = document.getElementById('confirmModal');
@@ -1026,18 +917,9 @@ Object.assign(CHAT, {
       close();
     };
   },
-
-  /* ─── گوش دادن به سرچ ─── */
-  setSearch(q) {
-    this.searchQuery = q;
-    this.renderChatList();
-  },
 });
 
-/* ═══════════════════════════════════════════════════
-   راه‌اندازی
-   ═══════════════════════════════════════════════════ */
-
+/* ─── راه‌اندازی CHAT ─── */
 window.addEventListener('DOMContentLoaded', () => {
   if (window.CHAT && typeof CHAT.init === 'function') {
     try {
