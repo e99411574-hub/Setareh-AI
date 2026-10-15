@@ -1,20 +1,15 @@
 /* ═══════════════════════════════════════════════════
    Setareh AI — chat.js
-   مدیریت چت، سشن‌ها، پیام‌ها و Puter.js
    ═══════════════════════════════════════════════════ */
 
 window.CHAT = {
-  /* ─── State ─── */
   sessions: [],
   currentId: null,
   isGenerating: false,
   searchQuery: '',
   attachments: [],
-
-  /* ─── DOM ─── */
   el: {},
 
-  /* ─── Init ─── */
   init() {
     this.cacheDom();
     this.loadSessions();
@@ -48,10 +43,6 @@ window.CHAT = {
       exportBtn: document.getElementById('exportBtn'),
     };
   },
-
-  /* ═══════════════════════════════════════════════════
-     سشن‌ها (Sessions)
-     ═══════════════════════════════════════════════════ */
 
   createSession() {
     const session = {
@@ -131,10 +122,6 @@ window.CHAT = {
     });
   },
 
-  /* ═══════════════════════════════════════════════════
-     localStorage
-     ═══════════════════════════════════════════════════ */
-
   saveSessions() {
     try {
       localStorage.setItem('setareh_sessions', JSON.stringify(this.sessions));
@@ -160,10 +147,6 @@ window.CHAT = {
       this.sessions = [];
     }
   },
-
-  /* ═══════════════════════════════════════════════════
-     Rendering
-     ═══════════════════════════════════════════════════ */
 
   render() {
     this.renderMessages();
@@ -605,10 +588,10 @@ Object.assign(window.CHAT, {
       .trim() || prompt;
 
     pendingMsg.content = '🎨 دارم تصویر می‌سازم...';
+    this.renderMessages();
 
-    const result = await puter.ai.txt2img(cleanPrompt, {
-      model: 'dall-e-3',
-    });
+    /* بدون model — Puter خودش انتخاب می‌کنه */
+    const result = await puter.ai.txt2img(cleanPrompt);
 
     let imgUrl = '';
     if (typeof result === 'string') {
