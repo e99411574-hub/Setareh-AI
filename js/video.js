@@ -9,7 +9,6 @@ var VIDEO = {
   init: function() {
     var self = this;
 
-    // تب‌ها
     document.querySelectorAll('.tab').forEach(function(tab) {
       tab.addEventListener('click', function() {
         var mode = this.getAttribute('data-mode');
@@ -115,17 +114,22 @@ var VIDEO = {
     btn.disabled = true;
     APP.vibrate(20);
 
-    // لودینگ پویا
+    // اسکرول به نتیجه
+    setTimeout(function() {
+      if (result) result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+
+    // لودینگ پویا با maxReal
     this._loader = APP.startLoading('videoResult', {
       title: imageFile ? 'در حال تحلیل عکس...' : 'در حال ساخت ویدیو...',
       sub: 'ممکنه ۳۰ تا ۹۰ ثانیه طول بکشه',
-      duration: 70000
+      duration: 50000,
+      maxReal: 85
     });
 
     try {
       var finalPrompt = promptText;
 
-      // اگه عکس داشتیم، اول توصیفش کن
       if (imageFile) {
         try {
           if (this._loader) this._loader.setProgress(15);
@@ -150,20 +154,17 @@ var VIDEO = {
       // درخواست ویدیو
       var videoElement = await puter.ai.txt2vid(finalPrompt);
 
-      // استخراج URL
       var url = this._extractUrl(videoElement);
       if (!url) throw new Error('ویدیویی تولید نشد');
 
       this._lastUrl = url;
 
-      // پایان لودینگ
       if (this._loader) {
         this._loader.setTitle('تمام شد!');
         this._loader.finish();
       }
-      await this._delay(400);
+      await this._delay(500);
 
-      // نمایش
       this._showResult(result, url);
 
       APP.toast('ویدیو ساخته شد');
@@ -213,7 +214,6 @@ var VIDEO = {
     }
   },
 
-  // ============ استخراج URL ============
   _extractUrl: function(el) {
     if (!el) return null;
     if (typeof el === 'string') return el;
@@ -228,7 +228,6 @@ var VIDEO = {
     return null;
   },
 
-  // ============ نمایش نتیجه ============
   _showResult: function(container, url) {
     container.innerHTML = '';
 
@@ -256,6 +255,11 @@ var VIDEO = {
     actions.appendChild(cp);
 
     container.appendChild(actions);
+
+    // اسکرول خودکار
+    setTimeout(function() {
+      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
   },
 
   download: function() {
