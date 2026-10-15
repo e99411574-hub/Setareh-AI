@@ -122,7 +122,6 @@ window.CHAT = {
     });
   },
 
-  /* ─── ذخیره با حذف base64 ─── */
   saveSessions() {
     try {
       const light = this.sessions.map(s => ({
@@ -154,7 +153,6 @@ window.CHAT = {
   },
 
   loadSessions() {
-    /* تست پر بودن storage */
     try {
       localStorage.setItem('_t', '1');
       localStorage.removeItem('_t');
@@ -468,7 +466,7 @@ window.CHAT = {
   confirmDelete() {},
 };
 /* ═══════════════════════════════════════════════════
-   CHAT — بخش ۲: ارسال، Puter، رویدادها
+   CHAT — بخش ۲: ارسال، Puter + Pollinations، رویدادها
    ═══════════════════════════════════════════════════ */
 
 Object.assign(window.CHAT, {
@@ -596,7 +594,7 @@ Object.assign(window.CHAT, {
     let finalPrompt = prompt;
 
     if (attachment && attachment.type === 'image') {
-      finalPrompt = `[کاربر یک عکس پیوست کرده]\n\n${prompt || 'این عکس رو توضیح بده'}`;
+      finalPrompt = '[کاربر یک عکس پیوست کرده]\n\n' + (prompt || 'این عکس رو توضیح بده');
     }
 
     const response = await puter.ai.chat(finalPrompt, {
@@ -617,79 +615,77 @@ Object.assign(window.CHAT, {
     pendingMsg.content = text || 'پاسخی دریافت نشد.';
   },
 
+  /* ═══════════════════════════════════════════════════
+     ساخت عکس با Pollinations.ai (رایگان و نامحدود)
+     ═══════════════════════════════════════════════════ */
+
   async generateImage(prompt, pendingMsg) {
-    const cleanPrompt = prompt
-      .replace(/(یه|یک)\s*عکس\s*(از|با)?/g, '')
-      .replace(/(بساز|بکش|درست کن)/g, '')
-      .trim() || prompt;
+    /* ─── ترجمهٔ prompt فارسی به انگلیسی ─── */
+    let englishPrompt = prompt;
+
+    try {
+      const transResp = await puter.ai.chat(
+        'Translate this to a short English image prompt. Only reply with the English translation, nothing else: ' + prompt,
+        { model: 'gpt-5-nano' }
+      );
+      const t = typeof transResp === 'string'
+        ? transResp
+        : (transResp?.message?.content || transResp?.text || '');
+      if (t && t.trim().length > 2) {
+        englishPrompt = t.trim();
+      }
+    } catch (e) {
+      console.warn('[IMG] translate failed, using original');
+    }
+
+    /* ─── پاک‌سازی ─── */
+    englishPrompt = englishPrompt
+      .replace(/^(a |an |the )/i, '')
+      .replace(/["']/g, '')
+      .replace(/\n/g, ' ')
+      .trim()
+      .slice(0, 400);
 
     pendingMsg.content = '🎨 دارم تصویر می‌سازم...';
     this.renderMessages();
 
-    let result;
-    try {
-      result = await puter.ai.txt2img(cleanPrompt);
-    } catch (e) {
-      console.error('[IMG] txt2img threw:', e);
-      throw new Error('سرویس تصویرسازی خطا داد: ' + (e?.message || e));
-    }
+    /* ─── Pollinations API ─── */
+    const seed = Math.floor(Math.random() * 1000000);
+    const encoded = encodeURIComponent(englishPrompt);
+    const url = 'https://image.pollinations.ai/prompt/' + encoded
+      + '?width=1024&height=1024&nologo=true&seed=' + seed + '&model=flux';
 
-    console.log('[IMG] raw result:', result);
-    console.log('[IMG] typeof:', typeof result);
-    console.log('[IMG] is HTMLImageElement:', result instanceof HTMLImageElement);
+    console.log('[IMG] requesting:', url);
 
-    let imgUrl = '';
+    /* ─── چک کن عکس لود می‌شه (با timeout 90 ثانیه) ─── */
+    await new Promise((resolve, reject) => {
+      const testImg = new Image();
+      const timeout = setTimeout(() => {
+        reject(new Error('زمان ساخت تصویر تموم شد (۹۰ ثانیه)'));
+      }, 90000);
 
-    if (typeof result === 'string') {
-      imgUrl = result;
-    } else if (result instanceof HTMLImageElement) {
-      imgUrl = result.src || result.getAttribute('src') || '';
-    } else if (result instanceof Blob) {
-      imgUrl = URL.createObjectURL(result);
-    } else if (result?.src) {
-      imgUrl = result.src;
-    } else if (result?.url) {
-      imgUrl = result.url;
-    } else if (Array.isArray(result) && result[0]) {
-      const first = result[0];
-      imgUrl = first?.src || first?.url || (typeof first === 'string' ? first : '');
-    } else if (result?.image) {
-      imgUrl = result.image;
-    } else if (result?.data) {
-      imgUrl = result.data;
-    }
+      testImg.onload = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
+      testImg.onerror = () => {
+        clearTimeout(timeout);
+        reject(new Error('سرویس تصویرسازی پاسخ نداد. دوباره تلاش کن.'));
+      };
+      testImg.src = url;
+    });
 
-    if (!imgUrl && result) {
-      try {
-        const str = String(result);
-        if (str.startsWith('http') || str.startsWith('data:') || str.startsWith('blob:')) {
-          imgUrl = str;
-        }
-      } catch (e) {}
-    }
-
-    if (!imgUrl) {
-      console.error('[IMG] unable to extract URL from result:', result);
-      throw new Error('تصویر ساخته نشد — نمی‌تونم آدرس رو استخراج کنم');
-    }
-
-    console.log('[IMG] extracted url (first 80):', imgUrl.slice(0, 80));
-
-    pendingMsg.image = imgUrl;
+    pendingMsg.image = url;
     pendingMsg.content = '✨ اینم تصویری که خواستی:';
 
-    this.saveToGallery(imgUrl, cleanPrompt);
+    this.saveToGallery(url, englishPrompt);
   },
 
-  /* ─── فقط URLهای http رو ذخیره کن ─── */
   saveToGallery(url, prompt) {
-    if (!url || !url.startsWith('http')) {
-      /* base64 ذخیره نمی‌کنیم چون حجم زیاد داره */
-      return;
-    }
+    if (!url) return;
     try {
       const g = JSON.parse(localStorage.getItem('setareh_gallery') || '[]');
-      g.unshift({ url, prompt, time: Date.now() });
+      g.unshift({ url: url, prompt: prompt, time: Date.now() });
       localStorage.setItem('setareh_gallery', JSON.stringify(g.slice(0, 30)));
     } catch (e) {
       console.warn('[GALLERY] save failed', e);
@@ -727,7 +723,6 @@ Object.assign(window.CHAT, {
     if (!userMsg || userMsg.role !== 'user') return;
 
     s.messages.splice(idx);
-
     this.sendMessage(userMsg.content, userMsg.attachment);
   },
 
@@ -752,7 +747,7 @@ Object.assign(window.CHAT, {
       .filter(m => !m.pending)
       .map(m => {
         const who = m.role === 'user' ? '👤 من' : '✨ ستاره';
-        const content = m.image ? '[تصویر ساخته‌شده]' : m.content;
+        const content = m.image ? '[تصویر: ' + m.image + ']' : m.content;
         return who + ':\n' + content;
       })
       .join('\n\n──────────\n\n');
