@@ -122,16 +122,50 @@ window.CHAT = {
     });
   },
 
+  /* ─── ذخیره با حذف base64 ─── */
   saveSessions() {
     try {
-      localStorage.setItem('setareh_sessions', JSON.stringify(this.sessions));
+      const light = this.sessions.map(s => ({
+        id: s.id,
+        title: s.title,
+        pinned: s.pinned,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+        messages: (s.messages || []).map(m => {
+          const copy = { ...m };
+          if (copy.image && typeof copy.image === 'string' && copy.image.startsWith('data:')) {
+            copy.image = null;
+          }
+          if (copy.attachment && copy.attachment.url && copy.attachment.url.startsWith('data:')) {
+            copy.attachment = null;
+          }
+          return copy;
+        }),
+      }));
+      localStorage.setItem('setareh_sessions', JSON.stringify(light));
       localStorage.setItem('setareh_current', this.currentId);
     } catch (e) {
-      console.warn('[CHAT] save failed', e);
+      console.warn('[CHAT] save failed, clearing...', e);
+      try {
+        localStorage.removeItem('setareh_sessions');
+        localStorage.removeItem('setareh_gallery');
+      } catch (e2) {}
     }
   },
 
   loadSessions() {
+    /* تست پر بودن storage */
+    try {
+      localStorage.setItem('_t', '1');
+      localStorage.removeItem('_t');
+    } catch (e) {
+      console.warn('[CHAT] storage full → clearing');
+      try {
+        localStorage.removeItem('setareh_sessions');
+        localStorage.removeItem('setareh_gallery');
+      } catch (e2) {}
+    }
+
     try {
       const raw = localStorage.getItem('setareh_sessions');
       if (raw) {
@@ -603,9 +637,6 @@ Object.assign(window.CHAT, {
     console.log('[IMG] raw result:', result);
     console.log('[IMG] typeof:', typeof result);
     console.log('[IMG] is HTMLImageElement:', result instanceof HTMLImageElement);
-    if (result && typeof result === 'object') {
-      try { console.log('[IMG] keys:', Object.keys(result)); } catch (e) {}
-    }
 
     let imgUrl = '';
 
@@ -642,7 +673,7 @@ Object.assign(window.CHAT, {
       throw new Error('تصویر ساخته نشد — نمی‌تونم آدرس رو استخراج کنم');
     }
 
-    console.log('[IMG] extracted url:', imgUrl.slice(0, 100));
+    console.log('[IMG] extracted url (first 80):', imgUrl.slice(0, 80));
 
     pendingMsg.image = imgUrl;
     pendingMsg.content = '✨ اینم تصویری که خواستی:';
@@ -650,11 +681,16 @@ Object.assign(window.CHAT, {
     this.saveToGallery(imgUrl, cleanPrompt);
   },
 
+  /* ─── فقط URLهای http رو ذخیره کن ─── */
   saveToGallery(url, prompt) {
+    if (!url || !url.startsWith('http')) {
+      /* base64 ذخیره نمی‌کنیم چون حجم زیاد داره */
+      return;
+    }
     try {
       const g = JSON.parse(localStorage.getItem('setareh_gallery') || '[]');
       g.unshift({ url, prompt, time: Date.now() });
-      localStorage.setItem('setareh_gallery', JSON.stringify(g.slice(0, 100)));
+      localStorage.setItem('setareh_gallery', JSON.stringify(g.slice(0, 30)));
     } catch (e) {
       console.warn('[GALLERY] save failed', e);
     }
@@ -716,8 +752,8 @@ Object.assign(window.CHAT, {
       .filter(m => !m.pending)
       .map(m => {
         const who = m.role === 'user' ? '👤 من' : '✨ ستاره';
-        const content = m.image ? `[تصویر: ${m.image}]` : m.content;
-        return `${who}:\n${content}`;
+        const content = m.image ? '[تصویر ساخته‌شده]' : m.content;
+        return who + ':\n' + content;
       })
       .join('\n\n──────────\n\n');
 
@@ -742,14 +778,31 @@ Object.assign(window.CHAT, {
       .map(m => {
         const who = m.role === 'user' ? 'من' : 'ستاره';
         const cls = m.role === 'user' ? 'user' : 'ai';
-        const content = m.image
-          ? `<img src="${m.image}" style="max-width:100%;border-radius:12px"/>`
-          : this.formatMarkdown(m.content || '');
-        return `<div class="m ${cls}"><b>${who}:</b><div>${content}</div></div>`;
+        let content = '';
+        if (m.image) {
+          content = '<img src="' + m.image + '" style="max-width:100%;border-radius:12px"/>';
+        } else {
+          content = this.formatMarkdown(m.content || '');
+        }
+        return '<div class="m ' + cls + '"><b>' + who + ':</b><div>' + content + '</div></div>';
       })
       .join('');
 
-    win.document.write('<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="utf-8"/><title>' + s.title + ' — ستاره</title><link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet"/><style>body{font-family:Vazirmatn,sans-serif;padding:30px;line-height:1.8;color:#111;max-width:800px;margin:0 auto}h1{font-size:20px;border-bottom:2px solid #4d6bfe;padding-bottom:10px;margin-bottom:20px}.m{margin-bottom:16px;padding:12px 16px;border-radius:12px;background:#f5f6fa}.m.user{background:#e8edff;border-right:4px solid #4d6bfe}.m.ai{background:#f0f0f5;border-right:4px solid #8b5cf6}.m b{color:#4d6bfe;display:block;margin-bottom:6px}pre{background:#1a1a24;color:#fff;padding:12px;border-radius:8px;overflow-x:auto;direction:ltr;text-align:left}code{background:#e0e0e8;padding:2px 6px;border-radius:4px;font-family:monospace}pre code{background:none;padding:0}img{max-width:100%;border-radius:10px;margin-top:8px}@media print{body{padding:10px}}</style></head><body><h1>' + s.title + '</h1>' + msgs + '<script>setTimeout(function(){window.print()},800)<\/script></body></html>');
+    const html = '<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="utf-8"/><title>' + s.title + ' — ستاره</title>'
+      + '<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet"/>'
+      + '<style>body{font-family:Vazirmatn,sans-serif;padding:30px;line-height:1.8;color:#111;max-width:800px;margin:0 auto}'
+      + 'h1{font-size:20px;border-bottom:2px solid #4d6bfe;padding-bottom:10px;margin-bottom:20px}'
+      + '.m{margin-bottom:16px;padding:12px 16px;border-radius:12px;background:#f5f6fa}'
+      + '.m.user{background:#e8edff;border-right:4px solid #4d6bfe}'
+      + '.m.ai{background:#f0f0f5;border-right:4px solid #8b5cf6}'
+      + '.m b{color:#4d6bfe;display:block;margin-bottom:6px}'
+      + 'pre{background:#1a1a24;color:#fff;padding:12px;border-radius:8px;overflow-x:auto;direction:ltr;text-align:left}'
+      + 'code{background:#e0e0e8;padding:2px 6px;border-radius:4px;font-family:monospace}'
+      + 'pre code{background:none;padding:0}'
+      + 'img{max-width:100%;border-radius:10px;margin-top:8px}'
+      + '@media print{body{padding:10px}}</style></head><body><h1>' + s.title + '</h1>' + msgs + '<script>setTimeout(function(){window.print()},800)<\/script></body></html>';
+
+    win.document.write(html);
     win.document.close();
   },
 
