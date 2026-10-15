@@ -3,65 +3,215 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#6C5CE7">
+<meta name="theme-color" content="#0a0a0a">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Setareh AI">
-<title>⭐ Setareh AI</title>
+<title>Setareh AI</title>
 
-<!-- فونت وزیرمتن -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
-<!-- Puter.js — هوش مصنوعی -->
 <script src="https://js.puter.com/v2/"></script>
 
-<!-- CSS -->
 <link rel="stylesheet" href="css/main.css">
 </head>
-<body>
+<body data-theme="dark">
 
 <!-- ============ نوار بالا ============ -->
 <header class="top-bar">
-  <div class="logo">
-    <span class="logo-icon">⭐</span>
-    <span class="logo-text">Setareh AI</span>
+  <button class="icon-btn" id="menuBtn" aria-label="menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <line x1="3" y1="6" x2="21" y2="6"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </button>
+
+  <div class="top-title">
+    <span class="top-logo">Setareh AI</span>
   </div>
-  <button class="theme-btn" id="themeBtn" title="حالت شب">🌙</button>
+
+  <button class="icon-btn" id="themeBtn" aria-label="theme">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+    </svg>
+  </button>
 </header>
 
-<!-- ============ بخش اصلی (پنل‌ها) ============ -->
+<!-- ============ منوی کناری ============ -->
+<div class="side-overlay" id="sideOverlay"></div>
+<aside class="side-menu" id="sideMenu">
+  <div class="side-header">
+    <div class="side-title">Setareh AI</div>
+    <button class="icon-btn small" id="closeMenuBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="18" y1="6" x2="6" y2="18"/>
+        <line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+  <nav class="side-nav">
+    <button class="side-item" data-go="chat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <span>چت</span>
+    </button>
+    <button class="side-item" data-go="image">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <polyline points="21 15 16 10 5 21"/>
+      </svg>
+      <span>ساخت عکس</span>
+    </button>
+    <button class="side-item" data-go="video">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="23 7 16 12 23 17 23 7"/>
+        <rect x="1" y="5" width="15" height="14" rx="2"/>
+      </svg>
+      <span>ساخت ویدیو</span>
+    </button>
+    <button class="side-item" data-go="merge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="2" width="20" height="20" rx="2"/>
+        <line x1="7" y1="2" x2="7" y2="22"/>
+        <line x1="17" y1="2" x2="17" y2="22"/>
+      </svg>
+      <span>ترکیب ویدیو</span>
+    </button>
+    <button class="side-item" data-go="edit">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20h9"/>
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+      </svg>
+      <span>ویرایش عکس</span>
+    </button>
+    <button class="side-item" data-go="tts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+      <span>متن به صدا</span>
+    </button>
+  </nav>
+  <div class="side-footer">
+    <div class="side-version">نسخه ۱.۰</div>
+  </div>
+</aside>
+
+<!-- ============ اپ ============ -->
 <main class="app">
 
-  <!-- پنل ۱: ساخت عکس -->
-  <section id="view-image" class="view active">
+  <!-- ============ پنل ۱: چت ============ -->
+  <section id="view-chat" class="view active">
+    <div class="chat-head">
+      <div class="chat-head-title">Setareh</div>
+      <div class="chat-head-actions">
+        <button class="icon-btn small" id="chatSearchBtn" title="جستجو">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </button>
+        <button class="icon-btn small" id="chatClearBtn" title="پاک کردن">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="chat-search-bar" id="chatSearchBar" style="display:none">
+      <input type="text" id="chatSearchInput" placeholder="جستجو در پیام‌ها...">
+      <button class="icon-btn small" id="closeSearchBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="chat-area" id="chatArea">
+      <div class="chat-welcome" id="chatWelcome">
+        <div class="welcome-logo">Setareh AI</div>
+        <div class="welcome-sub">چطور می‌تونم کمکت کنم؟</div>
+        <div class="welcome-chips">
+          <button class="chip" data-prompt="یه شعر کوتاه درباره بهار بنویس">شعر بگو</button>
+          <button class="chip" data-prompt="یه ایده برای یه اپلیکیشن جدید بده">ایده بده</button>
+          <button class="chip" data-prompt="یه سوال ریاضی رو برام توضیح بده">کمک درسی</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ضبط صدا -->
+    <div class="voice-indicator" id="voiceIndicator" style="display:none">
+      <div class="voice-waves">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <div class="voice-text" id="voiceText">در حال شنیدن...</div>
+      <button class="voice-stop" id="voiceStopBtn">متوقف کن</button>
+    </div>
+
+    <div class="chat-attachments" id="chatAttachments"></div>
+
+    <div class="chat-input-bar">
+      <button class="icon-btn" id="chatAttachBtn" title="آپلود">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+      </button>
+      <input type="text" id="chatInput" placeholder="پیامت رو بنویس...">
+      <button class="icon-btn voice-btn" id="chatVoiceBtn" title="ضبط صدا">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+        </svg>
+      </button>
+      <button class="send-btn" id="chatSendBtn" title="ارسال">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+
+    <input type="file" id="chatFileInput" accept="image/*,video/*" style="display:none" multiple>
+  </section>
+
+  <!-- ============ پنل ۲: ساخت عکس ============ -->
+  <section id="view-image" class="view">
     <div class="panel-header">
-      <h1>🖼️ ساخت عکس</h1>
+      <h1>ساخت عکس</h1>
       <p class="panel-sub">تصورت رو بنویس، عکسش رو بساز</p>
     </div>
 
     <div class="input-card">
       <textarea id="imagePrompt" placeholder="مثلاً: یه گربه سفید که توی بارون نشسته، سبک انیمه" rows="3"></textarea>
-      <button class="btn-primary" id="imageBtn">
-        <span>✨</span>
-        <span>بساز</span>
-      </button>
+      <button class="btn-primary" id="imageBtn">ساخت عکس</button>
     </div>
 
     <div id="imageResult" class="result-area"></div>
   </section>
 
-  <!-- پنل ۲: ساخت ویدیو -->
+  <!-- ============ پنل ۳: ساخت ویدیو ============ -->
   <section id="view-video" class="view">
     <div class="panel-header">
-      <h1>🎬 ساخت ویدیو</h1>
+      <h1>ساخت ویدیو</h1>
       <p class="panel-sub">از متن یا عکس، ویدیو بساز</p>
     </div>
 
     <div class="tabs">
-      <button class="tab active" data-mode="text">📝 از متن</button>
-      <button class="tab" data-mode="image">🖼️ از عکس</button>
+      <button class="tab active" data-mode="text">از متن</button>
+      <button class="tab" data-mode="image">از عکس</button>
     </div>
 
     <div class="input-card" id="videoTextMode">
@@ -70,114 +220,164 @@
 
     <div class="input-card" id="videoImageMode" style="display:none">
       <label class="upload-area" for="videoImageInput">
-        <span class="upload-icon">📁</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
         <span>عکس رو انتخاب کن</span>
         <input type="file" id="videoImageInput" accept="image/*" style="display:none">
       </label>
       <div id="videoImagePreview"></div>
-      <input type="text" id="videoImagePrompt" placeholder="توضیح بده چی توی عکس اتفاق بیفته (اختیاری)" class="text-input">
+      <input type="text" id="videoImagePrompt" placeholder="توضیح بده چی اتفاق بیفته (اختیاری)" class="text-input">
     </div>
 
-    <button class="btn-primary" id="videoBtn">
-      <span>🎬</span>
-      <span>بساز</span>
-    </button>
+    <button class="btn-primary" id="videoBtn">ساخت ویدیو</button>
 
     <div id="videoResult" class="result-area"></div>
   </section>
 
-  <!-- پنل ۳: ترکیب ویدیو -->
+  <!-- ============ پنل ۴: ترکیب ویدیو ============ -->
   <section id="view-merge" class="view">
     <div class="panel-header">
-      <h1>🎞️ ترکیب ویدیو</h1>
+      <h1>ترکیب ویدیو</h1>
       <p class="panel-sub">چند تا ویدیو رو بچسبون به هم</p>
     </div>
 
     <div class="input-card">
       <label class="upload-area" for="mergeInput">
-        <span class="upload-icon">📁</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
         <span>ویدیوها رو انتخاب کن</span>
         <input type="file" id="mergeInput" accept="video/*" multiple style="display:none">
       </label>
       <div id="mergePreview" class="merge-list"></div>
-      <button class="btn-primary" id="mergeBtn">
-        <span>🎞️</span>
-        <span>ترکیب کن</span>
-      </button>
+      <button class="btn-primary" id="mergeBtn">ترکیب کن</button>
     </div>
 
     <div id="mergeResult" class="result-area"></div>
   </section>
 
-  <!-- پنل ۴: چت AI -->
-  <section id="view-chat" class="view">
-    <div class="panel-header">
-      <h1>💬 چت با هوش مصنوعی</h1>
-      <p class="panel-sub">هر سوالی داری بپرس</p>
-    </div>
-
-    <div class="chat-area" id="chatArea">
-      <div class="chat-msg ai">
-        <div class="chat-bubble">
-          سلام! 👋 من ستاره‌ام، دستیار هوشمندت.<br>
-          هر سوالی داری بپرس، کمکت می‌کنم! ✨
-        </div>
-      </div>
-    </div>
-
-    <div class="chat-input-bar">
-      <input type="text" id="chatInput" placeholder="پیامت رو بنویس..." onkeydown="if(event.key==='Enter')APP.sendChat()">
-      <button class="chat-send" onclick="APP.sendChat()">➤</button>
-    </div>
-  </section>
-
-  <!-- پنل ۵: اصلاح عکس -->
+  <!-- ============ پنل ۵: ویرایش عکس ============ -->
   <section id="view-edit" class="view">
     <div class="panel-header">
-      <h1>✏️ اصلاح عکس</h1>
+      <h1>ویرایش عکس</h1>
       <p class="panel-sub">عکست رو با هوش مصنوعی ویرایش کن</p>
     </div>
 
     <div class="input-card">
       <label class="upload-area" for="editImageInput">
-        <span class="upload-icon">📁</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
         <span>عکس رو انتخاب کن</span>
         <input type="file" id="editImageInput" accept="image/*" style="display:none">
       </label>
       <div id="editImagePreview"></div>
       <textarea id="editPrompt" placeholder="مثلاً: این عکس رو به سبک انیمه تبدیل کن" rows="2"></textarea>
-      <button class="btn-primary" id="editBtn">
-        <span>✨</span>
-        <span>ویرایش کن</span>
-      </button>
+      <button class="btn-primary" id="editBtn">ویرایش کن</button>
     </div>
 
     <div id="editResult" class="result-area"></div>
+  </section>
+
+  <!-- ============ پنل ۶: تبدیل متن به صدا ============ -->
+  <section id="view-tts" class="view">
+    <div class="panel-header">
+      <h1>تبدیل متن به صدا</h1>
+      <p class="panel-sub">متن رو بنویس، به صدا تبدیل کن</p>
+    </div>
+
+    <div class="input-card">
+      <textarea id="ttsText" placeholder="متن رو اینجا بنویس..." rows="5"></textarea>
+
+      <div class="tts-label">انتخاب صدا</div>
+      <div class="voice-picker" id="voicePicker">
+        <button class="voice-opt" data-voice="alloy">
+          <span class="voice-avatar">👨</span>
+          <span class="voice-name">آلوی</span>
+        </button>
+        <button class="voice-opt" data-voice="echo">
+          <span class="voice-avatar">👨</span>
+          <span class="voice-name">اکو</span>
+        </button>
+        <button class="voice-opt" data-voice="fable">
+          <span class="voice-avatar">👨</span>
+          <span class="voice-name">فابل</span>
+        </button>
+        <button class="voice-opt" data-voice="onyx">
+          <span class="voice-avatar">👨</span>
+          <span class="voice-name">اونیکس</span>
+        </button>
+        <button class="voice-opt active" data-voice="nova">
+          <span class="voice-avatar">👩</span>
+          <span class="voice-name">نوا</span>
+        </button>
+        <button class="voice-opt" data-voice="shimmer">
+          <span class="voice-avatar">👩</span>
+          <span class="voice-name">شیمر</span>
+        </button>
+      </div>
+
+      <button class="btn-primary" id="ttsBtn">تبدیل به صدا</button>
+    </div>
+
+    <div id="ttsResult" class="result-area"></div>
   </section>
 
 </main>
 
 <!-- ============ نوار پایین ============ -->
 <nav class="bottom-nav">
-  <button class="nav-btn active" data-view="image">
-    <span class="nav-icon">🖼️</span>
-    <span class="nav-label">عکس</span>
+  <button class="nav-btn active" data-view="chat">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>
+    <span>چت</span>
+  </button>
+  <button class="nav-btn" data-view="image">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="2"/>
+      <circle cx="8.5" cy="8.5" r="1.5"/>
+      <polyline points="21 15 16 10 5 21"/>
+    </svg>
+    <span>عکس</span>
   </button>
   <button class="nav-btn" data-view="video">
-    <span class="nav-icon">🎬</span>
-    <span class="nav-label">ویدیو</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="23 7 16 12 23 17 23 7"/>
+      <rect x="1" y="5" width="15" height="14" rx="2"/>
+    </svg>
+    <span>ویدیو</span>
   </button>
   <button class="nav-btn" data-view="merge">
-    <span class="nav-icon">🎞️</span>
-    <span class="nav-label">ترکیب</span>
-  </button>
-  <button class="nav-btn" data-view="chat">
-    <span class="nav-icon">💬</span>
-    <span class="nav-label">چت</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="2" width="20" height="20" rx="2"/>
+      <line x1="7" y1="2" x2="7" y2="22"/>
+      <line x1="17" y1="2" x2="17" y2="22"/>
+    </svg>
+    <span>ترکیب</span>
   </button>
   <button class="nav-btn" data-view="edit">
-    <span class="nav-icon">✏️</span>
-    <span class="nav-label">ویرایش</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 20h9"/>
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+    </svg>
+    <span>ویرایش</span>
+  </button>
+  <button class="nav-btn" data-view="tts">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+      <line x1="12" y1="19" x2="12" y2="23"/>
+      <line x1="8" y1="23" x2="16" y2="23"/>
+    </svg>
+    <span>صدا</span>
   </button>
 </nav>
 
@@ -191,7 +391,8 @@
 <script src="js/merge.js"></script>
 <script src="js/chat.js"></script>
 <script src="js/edit.js"></script>
+<script src="js/tts.js"></script>
 <script src="js/app.js"></script>
 
 </body>
-  </html>
+</html>
