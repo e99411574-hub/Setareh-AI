@@ -218,6 +218,8 @@ window.CHAT = {
       img.src = msg.image;
       img.alt = 'تصویر ساخته‌شده';
       img.loading = 'lazy';
+      img.style.cursor = 'pointer';
+      img.onclick = () => window.open(msg.image, '_blank');
       container.appendChild(img);
     }
 
@@ -262,7 +264,7 @@ window.CHAT = {
         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
       </svg>
       کپی`;
-    copyBtn.onclick = () => this.copyMessage(msg.content);
+    copyBtn.onclick = () => this.copyMessage(msg.content || msg.image || '');
     actions.appendChild(copyBtn);
 
     if (msg.role === 'user') {
@@ -590,23 +592,57 @@ Object.assign(window.CHAT, {
     pendingMsg.content = '🎨 دارم تصویر می‌سازم...';
     this.renderMessages();
 
-    /* بدون model — Puter خودش انتخاب می‌کنه */
-    const result = await puter.ai.txt2img(cleanPrompt);
+    let result;
+    try {
+      result = await puter.ai.txt2img(cleanPrompt);
+    } catch (e) {
+      console.error('[IMG] txt2img threw:', e);
+      throw new Error('سرویس تصویرسازی خطا داد: ' + (e?.message || e));
+    }
+
+    console.log('[IMG] raw result:', result);
+    console.log('[IMG] typeof:', typeof result);
+    console.log('[IMG] is HTMLImageElement:', result instanceof HTMLImageElement);
+    if (result && typeof result === 'object') {
+      try { console.log('[IMG] keys:', Object.keys(result)); } catch (e) {}
+    }
 
     let imgUrl = '';
+
     if (typeof result === 'string') {
       imgUrl = result;
+    } else if (result instanceof HTMLImageElement) {
+      imgUrl = result.src || result.getAttribute('src') || '';
+    } else if (result instanceof Blob) {
+      imgUrl = URL.createObjectURL(result);
     } else if (result?.src) {
       imgUrl = result.src;
     } else if (result?.url) {
       imgUrl = result.url;
-    } else if (result?.toString) {
-      imgUrl = result.toString();
+    } else if (Array.isArray(result) && result[0]) {
+      const first = result[0];
+      imgUrl = first?.src || first?.url || (typeof first === 'string' ? first : '');
+    } else if (result?.image) {
+      imgUrl = result.image;
+    } else if (result?.data) {
+      imgUrl = result.data;
     }
 
-    if (!imgUrl || !imgUrl.startsWith('http')) {
-      throw new Error('تصویر ساخته نشد');
+    if (!imgUrl && result) {
+      try {
+        const str = String(result);
+        if (str.startsWith('http') || str.startsWith('data:') || str.startsWith('blob:')) {
+          imgUrl = str;
+        }
+      } catch (e) {}
     }
+
+    if (!imgUrl) {
+      console.error('[IMG] unable to extract URL from result:', result);
+      throw new Error('تصویر ساخته نشد — نمی‌تونم آدرس رو استخراج کنم');
+    }
+
+    console.log('[IMG] extracted url:', imgUrl.slice(0, 100));
 
     pendingMsg.image = imgUrl;
     pendingMsg.content = '✨ اینم تصویری که خواستی:';
@@ -664,7 +700,7 @@ Object.assign(window.CHAT, {
     try {
       await navigator.clipboard.writeText(text);
       this.toast('✅ کپی شد');
-    } catch {
+    } catch (e) {
       this.toast('❌ کپی نشد');
     }
   },
@@ -688,7 +724,7 @@ Object.assign(window.CHAT, {
     try {
       await navigator.clipboard.writeText(text);
       this.toast('✅ کل گفتگو کپی شد');
-    } catch {
+    } catch (e) {
       this.toast('❌ کپی نشد');
     }
   },
@@ -713,34 +749,7 @@ Object.assign(window.CHAT, {
       })
       .join('');
 
-    win.document.write(`
-      <!DOCTYPE html>
-      <html dir="rtl" lang="fa">
-      <head>
-        <meta charset="utf-8"/>
-        <title>${s.title} — ستاره</title>
-        <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet"/>
-        <style>
-          body{font-family:Vazirmatn,sans-serif;padding:30px;line-height:1.8;color:#111;max-width:800px;margin:0 auto}
-          h1{font-size:20px;border-bottom:2px solid #4d6bfe;padding-bottom:10px;margin-bottom:20px}
-          .m{margin-bottom:16px;padding:12px 16px;border-radius:12px;background:#f5f6fa}
-          .m.user{background:#e8edff;border-right:4px solid #4d6bfe}
-          .m.ai{background:#f0f0f5;border-right:4px solid #8b5cf6}
-          .m b{color:#4d6bfe;display:block;margin-bottom:6px}
-          pre{background:#1a1a24;color:#fff;padding:12px;border-radius:8px;overflow-x:auto;direction:ltr;text-align:left}
-          code{background:#e0e0e8;padding:2px 6px;border-radius:4px;font-family:monospace}
-          pre code{background:none;padding:0}
-          img{max-width:100%;border-radius:10px;margin-top:8px}
-          @media print{body{padding:10px}}
-        </style>
-      </head>
-      <body>
-        <h1>${s.title}</h1>
-        ${msgs}
-        <script>setTimeout(()=>window.print(),800)<\/script>
-      </body>
-      </html>
-    `);
+    win.document.write('<!DOCTYPE html><html dir="rtl" lang="fa"><head><meta charset="utf-8"/><title>' + s.title + ' — ستاره</title><link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet"/><style>body{font-family:Vazirmatn,sans-serif;padding:30px;line-height:1.8;color:#111;max-width:800px;margin:0 auto}h1{font-size:20px;border-bottom:2px solid #4d6bfe;padding-bottom:10px;margin-bottom:20px}.m{margin-bottom:16px;padding:12px 16px;border-radius:12px;background:#f5f6fa}.m.user{background:#e8edff;border-right:4px solid #4d6bfe}.m.ai{background:#f0f0f5;border-right:4px solid #8b5cf6}.m b{color:#4d6bfe;display:block;margin-bottom:6px}pre{background:#1a1a24;color:#fff;padding:12px;border-radius:8px;overflow-x:auto;direction:ltr;text-align:left}code{background:#e0e0e8;padding:2px 6px;border-radius:4px;font-family:monospace}pre code{background:none;padding:0}img{max-width:100%;border-radius:10px;margin-top:8px}@media print{body{padding:10px}}</style></head><body><h1>' + s.title + '</h1>' + msgs + '<script>setTimeout(function(){window.print()},800)<\/script></body></html>');
     win.document.close();
   },
 
@@ -788,14 +797,14 @@ Object.assign(window.CHAT, {
     reader.onload = (ev) => {
       const type = file.type.startsWith('video') ? 'video' : 'image';
       this.attachments = [{
-        type,
+        type: type,
         url: ev.target.result,
         name: file.name,
       }];
 
       const preview = type === 'image'
-        ? `📷 [تصویر: ${file.name}] `
-        : `🎬 [ویدیو: ${file.name}] `;
+        ? '📷 [تصویر: ' + file.name + '] '
+        : '🎬 [ویدیو: ' + file.name + '] ';
       this.el.inputBox.value = preview + this.el.inputBox.value;
       this.updateSendState();
       this.toast('✅ پیوست شد');
@@ -883,7 +892,7 @@ Object.assign(window.CHAT, {
 
     const s = this.sessions.find(x => x.id === id);
     if (title) title.textContent = 'حذف چت';
-    if (text) text.textContent = `«${s?.title || 'این چت'}» حذف بشه؟ این عمل برگشت‌پذیر نیست.`;
+    if (text) text.textContent = '«' + (s?.title || 'این چت') + '» حذف بشه؟ این عمل برگشت‌پذیر نیست.';
 
     modal.classList.add('show');
 
