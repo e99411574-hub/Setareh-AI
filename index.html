@@ -63,6 +63,15 @@
       </svg>
       <span>ساخت عکس</span>
     </button>
+    <button class="side-item" data-go="tts">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+        <line x1="12" y1="19" x2="12" y2="23"/>
+        <line x1="8" y1="23" x2="16" y2="23"/>
+      </svg>
+      <span>متن به صدا</span>
+    </button>
   </nav>
   <div class="side-footer">
     <div class="side-version">نسخه ۱.۰</div>
@@ -178,6 +187,21 @@
     <div id="imageResult" class="result-area"></div>
   </section>
 
+  <!-- ============ پنل ۳: تبدیل متن به صدا ============ -->
+  <section id="view-tts" class="view">
+    <div class="panel-header">
+      <h1>تبدیل متن به صدا</h1>
+      <p class="panel-sub">متن رو بنویس، به صدا تبدیل کن</p>
+    </div>
+
+    <div class="input-card">
+      <textarea id="ttsText" placeholder="متن رو اینجا بنویس..." rows="6"></textarea>
+      <button class="btn-primary" id="ttsBtn">پخش صدا</button>
+    </div>
+
+    <div id="ttsResult" class="result-area"></div>
+  </section>
+
 </main>
 
 <!-- ============ نوار پایین ============ -->
@@ -196,6 +220,15 @@
     </svg>
     <span>عکس</span>
   </button>
+  <button class="nav-btn" data-view="tts">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+      <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+      <line x1="12" y1="19" x2="12" y2="23"/>
+      <line x1="8" y1="23" x2="16" y2="23"/>
+    </svg>
+    <span>صدا</span>
+  </button>
 </nav>
 
 <!-- ============ Toast ============ -->
@@ -205,6 +238,7 @@
 <script src="js/router.js"></script>
 <script src="js/image.js"></script>
 <script src="js/chat.js"></script>
+<script src="js/tts.js"></script>
 <script src="js/app.js"></script>
 
 </body>
