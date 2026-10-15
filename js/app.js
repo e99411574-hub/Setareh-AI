@@ -1,32 +1,49 @@
-// ===== js/app.js — راه‌اندازی Setareh AI =====
+// ===== js/app.js — Setareh AI =====
 
 var APP = {
   version: '2.0.0',
 
+  // ============ راه‌اندازی ============
   init: function() {
+    console.log('🚀 APP.init شروع');
+
+    // تم
     this.initTheme();
 
     // دکمهٔ تم
     var themeBtn = document.getElementById('themeBtn');
     if (themeBtn) {
       themeBtn.addEventListener('click', this.toggleTheme.bind(this));
+      console.log('✅ دکمهٔ تم');
     }
 
-    // راه‌اندازی چت
-    if (typeof CHAT !== 'undefined' && CHAT.init) {
-      CHAT.init();
+    // دکمهٔ منو
+    var menuBtn = document.getElementById('menuBtn');
+    if (menuBtn) {
+      menuBtn.addEventListener('click', function() {
+        var sidebar = document.getElementById('sidebar');
+        var overlay = document.getElementById('sidebarOverlay');
+        if (sidebar) sidebar.classList.add('open');
+        if (overlay) overlay.classList.add('open');
+        if (typeof CHAT !== 'undefined' && CHAT.renderSidebar) {
+          CHAT.renderSidebar();
+        }
+      });
+      console.log('✅ دکمهٔ منو');
     }
 
-    // اگه سشن هست، پیام‌ها رو نشون بده
-    setTimeout(function() {
-      if (typeof CHAT !== 'undefined' && CHAT._history && CHAT._history.length) {
-        CHAT.renderHistory();
-      } else if (typeof CHAT !== 'undefined' && CHAT._showWelcome) {
-        CHAT._showWelcome();
-      }
-    }, 200);
+    // overlay منو
+    var overlay = document.getElementById('sidebarOverlay');
+    if (overlay) {
+      overlay.addEventListener('click', function() {
+        var sidebar = document.getElementById('sidebar');
+        if (sidebar) sidebar.classList.remove('open');
+        overlay.classList.remove('open');
+      });
+      console.log('✅ overlay');
+    }
 
-    console.log('⭐ Setareh AI آماده — نسخه', this.version);
+    console.log('✅ APP.init تموم شد');
   },
 
   // ============ تم ============
@@ -101,9 +118,37 @@ var APP = {
   }
 };
 
-// ============ راه‌اندازی ============
-window.addEventListener('DOMContentLoaded', function() {
-  try { APP.init(); } catch (e) { console.error('APP init error:', e); }
-});
-
 window.APP = APP;
+
+// ============ راه‌اندازی خودکار ============
+window.addEventListener('DOMContentLoaded', function() {
+  // ۱. APP
+  try { APP.init(); } catch(e) { console.error('❌ APP.init:', e); }
+
+  // ۲. CHAT (جدا، بعد از APP)
+  try {
+    if (typeof CHAT !== 'undefined' && CHAT.init) {
+      CHAT.init();
+      console.log('✅ CHAT.init صدا زده شد');
+    } else {
+      console.warn('⚠️ CHAT پیدا نشد');
+    }
+  } catch(e) {
+    console.error('❌ CHAT.init:', e);
+    console.error('Stack:', e.stack);
+  }
+
+  // ۳. نمایش welcome یا history
+  setTimeout(function() {
+    try {
+      if (typeof CHAT === 'undefined') return;
+      if (CHAT._history && CHAT._history.length > 0) {
+        CHAT.renderHistory();
+      } else if (CHAT._showWelcome) {
+        CHAT._showWelcome();
+      }
+    } catch(e) {
+      console.error('❌ render:', e);
+    }
+  }, 300);
+});
