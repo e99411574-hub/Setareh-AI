@@ -7,13 +7,11 @@ var APP = {
     this.initTheme();
     ROUTER.init();
 
-    // دکمهٔ تغییر تم
     var themeBtn = document.getElementById('themeBtn');
     if (themeBtn) {
       themeBtn.addEventListener('click', this.toggleTheme.bind(this));
     }
 
-    // راه‌اندازی پنل‌ها
     if (typeof CHAT !== 'undefined' && CHAT.init) CHAT.init();
     if (typeof IMAGE !== 'undefined' && IMAGE.init) IMAGE.init();
     if (typeof VIDEO !== 'undefined' && VIDEO.init) VIDEO.init();
@@ -43,7 +41,6 @@ var APP = {
   updateThemeIcon: function(theme) {
     var btn = document.getElementById('themeBtn');
     if (!btn) return;
-    // آیکن خورشید برای تم روشن، ماه برای تم تیره
     if (theme === 'dark') {
       btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
     } else {
@@ -78,12 +75,13 @@ var APP = {
 
     var title = options.title || 'در حال ساخت...';
     var sub = options.sub || 'لطفاً صبر کن';
-    var duration = options.duration || 30000; // مدت تقریبی به میلی‌ثانیه
+    var duration = options.duration || 30000;
+    var maxReal = options.maxReal || 90;
     var startTime = Date.now();
     var percent = 0;
     var fake = 0;
+    var finished = false;
 
-    // ساخت HTML لودینگ
     el.innerHTML =
       '<div class="loading">' +
         '<div class="loading-dots">' +
@@ -106,20 +104,18 @@ var APP = {
     var titleEl = document.getElementById(containerId + '-title');
     var subEl = document.getElementById(containerId + '-sub');
 
-    // انیمیشن درصد
     var interval = setInterval(function() {
+      if (finished) return;
       var elapsed = Date.now() - startTime;
       var ratio = elapsed / duration;
 
-      // درصد واقعی (۰-۹۵ بر اساس زمان)
-      var target = Math.min(95, ratio * 95);
-
-      // اگه fake بالاتر بود، از fake استفاده کن
+      // هدف: هرچی زمان می‌گذره به maxReal نزدیک‌تر بشه
+      var target = Math.min(maxReal, ratio * maxReal);
       if (fake > target) target = fake;
 
       // انیمیشن نرم
-      percent += (target - percent) * 0.15;
-      if (percent > 99) percent = 99;
+      percent += (target - percent) * 0.12;
+      if (percent > maxReal) percent = maxReal;
 
       var display = Math.round(percent);
       if (fillEl) fillEl.style.width = display + '%';
@@ -131,14 +127,16 @@ var APP = {
       setSub: function(s) { if (subEl) subEl.textContent = s; },
       setProgress: function(p) {
         fake = Math.max(fake, p);
-        if (fake > 99) fake = 99;
+        if (fake > maxReal) fake = maxReal;
       },
       finish: function() {
+        finished = true;
         clearInterval(interval);
         if (fillEl) fillEl.style.width = '100%';
         if (pctEl) pctEl.textContent = '۱۰۰٪';
       },
       stop: function() {
+        finished = true;
         clearInterval(interval);
       }
     };
