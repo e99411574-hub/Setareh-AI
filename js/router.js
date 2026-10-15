@@ -1,7 +1,7 @@
 // ===== js/router.js — جابجایی بین پنل‌ها =====
 
 var ROUTER = {
-  current: 'image',
+  current: 'chat',
 
   init: function() {
     var self = this;
@@ -14,7 +14,41 @@ var ROUTER = {
       });
     });
 
-    // پشتیبانی از hash
+    // منوی کناری
+    document.querySelectorAll('.side-item').forEach(function(item) {
+      item.addEventListener('click', function() {
+        var go = this.getAttribute('data-go');
+        if (go) self.go(go);
+        self.closeSideMenu();
+      });
+    });
+
+    // دکمهٔ منو
+    var menuBtn = document.getElementById('menuBtn');
+    var sideMenu = document.getElementById('sideMenu');
+    var sideOverlay = document.getElementById('sideOverlay');
+    var closeMenuBtn = document.getElementById('closeMenuBtn');
+
+    if (menuBtn) {
+      menuBtn.addEventListener('click', function() {
+        if (sideMenu) sideMenu.classList.add('open');
+        if (sideOverlay) sideOverlay.classList.add('open');
+      });
+    }
+
+    if (closeMenuBtn) {
+      closeMenuBtn.addEventListener('click', function() {
+        self.closeSideMenu();
+      });
+    }
+
+    if (sideOverlay) {
+      sideOverlay.addEventListener('click', function() {
+        self.closeSideMenu();
+      });
+    }
+
+    // hash
     if (window.location.hash) {
       var hash = window.location.hash.replace('#', '');
       if (document.getElementById('view-' + hash)) {
@@ -25,23 +59,28 @@ var ROUTER = {
     console.log('🧭 ROUTER: آماده');
   },
 
+  closeSideMenu: function() {
+    var sideMenu = document.getElementById('sideMenu');
+    var sideOverlay = document.getElementById('sideOverlay');
+    if (sideMenu) sideMenu.classList.remove('open');
+    if (sideOverlay) sideOverlay.classList.remove('open');
+  },
+
   go: function(view) {
     if (!view) return;
-    if (!document.getElementById('view-' + view)) {
+    var target = document.getElementById('view-' + view);
+    if (!target) {
       console.warn('ROUTER: view پیدا نشد:', view);
       return;
     }
 
-    // پنهان کردن همه
+    // مخفی کردن همه
     document.querySelectorAll('.view').forEach(function(v) {
       v.classList.remove('active');
     });
 
     // نمایش جدید
-    var target = document.getElementById('view-' + view);
-    if (target) {
-      target.classList.add('active');
-    }
+    target.classList.add('active');
 
     // آپدیت نوار پایین
     document.querySelectorAll('.nav-btn').forEach(function(btn) {
@@ -62,8 +101,8 @@ var ROUTER = {
 
     this.current = view;
 
-    // افکت صوتی (اختیاری)
-    if (typeof APP !== 'undefined' && APP.vibrate) APP.vibrate(20);
+    // افکت لرزش
+    if (typeof APP !== 'undefined' && APP.vibrate) APP.vibrate(15);
   }
 };
 
