@@ -1,36 +1,31 @@
-// ===== js/video.js — ساخت ویدیو با Agnes AI =====
+// ===== js/video.js — ساخت ویدیو از عکس‌های AI =====
 
 var VIDEO = {
-  _mode: 'text',
-  _file: null,
+  _lastBlob: null,
   _lastUrl: null,
   _loader: null,
-  _apiKey: '',
-  _pollTimer: null,
-  _videoId: null,
+  _cancelled: false,
 
-  API_BASE: 'https://apihub.agnes-ai.com/v1',
-  MODEL: 'agnes-video-v2.0',
+  STYLE: 'cinematic, photorealistic, highly detailed, 4k, dramatic lighting, film grain',
+
+  VARIATIONS: [
+    'cinematic wide establishing shot',
+    'extreme close-up detail shot',
+    'dramatic low angle shot',
+    'aerial drone view from above',
+    'atmospheric medium shot',
+    'artistic bokeh shot'
+  ],
+
+  DIRECTIONS: ['zoom-in', 'pan-right', 'zoom-out', 'pan-left', 'zoom-in', 'pan-up'],
+
+  IMAGE_COUNT: 6,
+  IMAGE_DURATION: 3000,
 
   init: function() {
     var self = this;
-
-    this._apiKey = localStorage.getItem('agnes_api_key') || '';
-
-    document.querySelectorAll('.tab').forEach(function(tab) {
-      tab.addEventListener('click', function() {
-        var mode = this.getAttribute('data-mode');
-        self.setMode(mode);
-      });
-    });
-
     var btn = document.getElementById('videoBtn');
     if (btn) btn.addEventListener('click', function() { self.generate(); });
-
-    var fileInput = document.getElementById('videoImageInput');
-    if (fileInput) {
-      fileInput.addEventListener('change', function(e) { self.onFileSelect(e); });
-    }
 
     var prompt = document.getElementById('videoPrompt');
     if (prompt) {
@@ -42,107 +37,39 @@ var VIDEO = {
       });
     }
 
-    if (!this._apiKey) {
-      this._showApiKeyForm();
-    }
-
-    console.log('🎬 VIDEO: آماده (Agnes AI)');
-  },
-
-  // ============ فرم API Key ============
-  _showApiKeyForm: function() {
-    var result = document.getElementById('videoResult');
-    if (!result) return;
-
-    result.innerHTML =
-      '<div style="padding:20px;background:var(--bg-2);border:1px solid var(--border);border-radius:16px;">' +
-        '<div style="font-weight:800;font-size:15px;color:var(--text);margin-bottom:8px;">🔑 تنظیم API Key</div>' +
-        '<div style="font-size:13px;color:var(--text-2);line-height:1.7;margin-bottom:12px;">' +
-          'برای ساخت ویدیو، اول یه API Key رایگان از Agnes AI بگیر:' +
-        '</div>' +
-        '<div style="background:var(--bg-3);padding:10px;border-radius:10px;margin-bottom:10px;font-size:11px;color:var(--text-3);line-height:1.6;">' +
-          '⚠️ برای دسترسی به Agnes باید VPN روشن باشه' +
-        '</div>' +
-        '<a href="https://platform.agnes-ai.com" target="_blank" style="display:block;text-align:center;padding:10px;background:var(--accent-grad);color:#fff;border-radius:12px;text-decoration:none;font-weight:700;font-size:13px;margin-bottom:10px;">' +
-          '🔗 رفتن به Agnes AI' +
-        '</a>' +
-        '<input type="text" id="agnesKeyInput" placeholder="API Key رو اینجا پیست کن (sk-...)" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--bg-3);color:var(--text);font-family:monospace;font-size:11px;margin-bottom:10px;direction:ltr;text-align:center;box-sizing:border-box;" value="' + (this._apiKey || '') + '">' +
-        '<button onclick="VIDEO.saveApiKey()" style="width:100%;padding:12px;background:var(--accent-grad);color:#fff;border:none;border-radius:12px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;">' +
-          'ذخیره' +
-        '</button>' +
-      '</div>';
-  },
-
-  saveApiKey: function() {
-    var input = document.getElementById('agnesKeyInput');
-    if (!input) return;
-    var key = (input.value || '').trim();
-    if (!key || key.length < 10) {
-      APP.toast('❌ API Key معتبر نیست');
-      return;
-    }
-    localStorage.setItem('agnes_api_key', key);
-    this._apiKey = key;
-    APP.toast('✅ ذخیره شد');
-    APP.vibrate(30);
-    var result = document.getElementById('videoResult');
-    if (result) result.innerHTML = '';
-  },
-
-  setMode: function(mode) {
-    this._mode = mode;
-    document.querySelectorAll('.tab').forEach(function(t) {
-      if (t.getAttribute('data-mode') === mode) t.classList.add('active');
-      else t.classList.remove('active');
+    document.querySelectorAll('.tab').forEach(function(tab) {
+      tab.addEventListener('click', function() {
+        APP.toast('فعلاً فقط از متن');
+      });
     });
-    var textMode = document.getElementById('videoTextMode');
-    var imageMode = document.getElementById('videoImageMode');
-    if (mode === 'text') {
-      if (textMode) textMode.style.display = 'block';
-      if (imageMode) imageMode.style.display = 'none';
-    } else {
-      if (textMode) textMode.style.display = 'none';
-      if (imageMode) imageMode.style.display = 'block';
-    }
-    APP.vibrate(15);
-  },
 
-  onFileSelect: function(e) {
-    var file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      APP.toast('عکس بزرگه');
-      return;
-    }
-    this._file = file;
-    var preview = document.getElementById('videoImagePreview');
-    var reader = new FileReader();
-    reader.onload = function(ev) {
-      preview.innerHTML = '<img src="' + ev.target.result + '" alt="preview">';
-    };
-    reader.readAsDataURL(file);
+    console.log('🎬 VIDEO: آماده');
   },
 
   generate: async function() {
-    var result = document.getElementById('videoResult');
-    var btn = document.getElementById('videoBtn');
+    if (this._cancelled) return;
 
-    if (!this._apiKey) {
-      this._showApiKeyForm();
-      APP.toast('اول API Key رو وارد کن');
-      return;
-    }
+    var prompt = (document.getElementById('videoPrompt') || {}).value || '';
+    prompt = prompt.trim();
 
-    var promptText = (document.getElementById('videoPrompt') || {}).value || '';
-    promptText = promptText.trim();
-
-    if (!promptText) {
+    if (!prompt) {
       APP.toast('اول متن رو بنویس');
       APP.vibrate(30);
       return;
     }
 
+    if (typeof puter === 'undefined' || !puter.ai) {
+      APP.toast('اتصال برقرار نیست');
+      return;
+    }
+
+    var btn = document.getElementById('videoBtn');
+    var result = document.getElementById('videoResult');
+
     btn.disabled = true;
+    this._cancelled = false;
+    this._lastBlob = null;
+    this._lastUrl = null;
     APP.vibrate(20);
 
     setTimeout(function() {
@@ -150,59 +77,29 @@ var VIDEO = {
     }, 100);
 
     this._loader = APP.startLoading('videoResult', {
-      title: 'در حال ارسال درخواست...',
-      sub: 'ممکنه ۱ تا ۳ دقیقه طول بکشه',
-      duration: 180000,
-      maxReal: 90
+      title: 'در حال ساخت عکس‌ها...',
+      sub: 'چند تا عکس با زوایای مختلف می‌سازیم',
+      duration: 120000,
+      maxReal: 50
     });
 
     try {
-      // ============ ۱. ایجاد درخواست ============
-      var createRes = await fetch(this.API_BASE + '/videos/generations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + this._apiKey
-        },
-        body: JSON.stringify({
-          model: this.MODEL,
-          prompt: promptText,
-          duration: 5,
-          aspect_ratio: '16:9'
-        })
-      });
-
-      if (!createRes.ok) {
-        var errData = await createRes.json().catch(function() { return {}; });
-        var errMsg = 'خطا ' + createRes.status;
-        if (errData && errData.error) {
-          errMsg = errData.error.message || errData.error;
-        } else if (errData && errData.message) {
-          errMsg = errData.message;
-        }
-        throw new Error(errMsg);
-      }
-
-      var createData = await createRes.json();
-      console.log('Task created:', createData);
-
-      var videoId = createData.id || createData.video_id || createData.task_id || (createData.data && createData.data.id);
-      if (!videoId) throw new Error('شناسهٔ ویدیو دریافت نشد');
-
-      this._videoId = videoId;
+      var imageUrls = await this._generateImages(prompt);
+      if (this._cancelled) return;
+      if (!imageUrls.length) throw new Error('هیچ عکسی ساخته نشد. دوباره امتحان کن.');
 
       if (this._loader) {
-        this._loader.setTitle('در حال پردازش...');
-        this._loader.setSub('ممکنه ۱ تا ۳ دقیقه طول بکشه');
-        this._loader.setProgress(20);
+        this._loader.setTitle('در حال ساخت ویدیو...');
+        this._loader.setSub('عکس‌ها به هم چسبانده می‌شن');
+        this._loader.setProgress(55);
       }
 
-      // ============ ۲. Polling ============
-      var videoUrl = await this._pollVideoStatus(videoId);
+      var blob = await this._createVideo(imageUrls);
+      if (this._cancelled) return;
+      if (!blob) throw new Error('ویدیو ساخته نشد');
 
-      if (!videoUrl) throw new Error('ویدیو آماده نشد');
-
-      this._lastUrl = videoUrl;
+      this._lastBlob = blob;
+      this._lastUrl = URL.createObjectURL(blob);
 
       if (this._loader) {
         this._loader.setTitle('تمام شد!');
@@ -210,107 +107,196 @@ var VIDEO = {
       }
       await this._delay(500);
 
-      this._showResult(result, videoUrl);
+      this._showResult(this._lastUrl);
 
-      APP.toast('ویدیو ساخته شد');
-      APP.vibrate(40);
+      APP.toast('✅ ویدیو ساخته شد!');
+      APP.vibrate(50);
 
     } catch (err) {
       console.error('video error:', err);
       if (this._loader) this._loader.stop();
       var msg = err.message || 'خطای ناشناخته';
-      if (msg.length > 120) msg = msg.substring(0, 120) + '...';
-      APP.showError('videoResult',
-        '⚠️ ' + msg + '\n\n' +
-        'راه‌حل:\n' +
-        '• VPN رو روشن کن\n' +
-        '• API Key رو چک کن\n' +
-        '• بعداً دوباره امتحان کن');
+      if (msg.length > 100) msg = msg.substring(0, 100) + '...';
+      APP.showError('videoResult', '❌ ' + msg);
       APP.toast('خطا');
       APP.vibrate(50);
     } finally {
       btn.disabled = false;
       this._loader = null;
-      this._clearTimers();
     }
   },
 
-  _pollVideoStatus: async function(videoId) {
-    var self = this;
-    var maxAttempts = 40;
-    var attempt = 0;
+  _generateImages: async function(userPrompt) {
+    var urls = [];
+    var total = this.IMAGE_COUNT;
 
+    for (var i = 0; i < total; i++) {
+      if (this._cancelled) break;
+
+      if (this._loader) {
+        this._loader.setTitle('ساخت عکس ' + (i + 1) + ' از ' + total);
+        this._loader.setSub(this.VARIATIONS[i % this.VARIATIONS.length]);
+        var p = (i / total) * 50;
+        this._loader.setProgress(p);
+      }
+
+      var fullPrompt = this.VARIATIONS[i % this.VARIATIONS.length] +
+        ' of ' + userPrompt + ', ' + this.STYLE;
+
+      try {
+        var el = await puter.ai.txt2img(fullPrompt);
+        var url = this._extractUrl(el);
+        if (url) urls.push(url);
+      } catch(e) {
+        console.warn('image ' + (i+1) + ' failed:', e);
+      }
+    }
+
+    return urls;
+  },
+
+  _createVideo: async function(imageUrls) {
+    var images = [];
+    for (var i = 0; i < imageUrls.length; i++) {
+      if (this._cancelled) break;
+      try {
+        var img = await this._loadImage(imageUrls[i]);
+        images.push(img);
+      } catch(e) {
+        console.warn('load image failed:', e);
+      }
+    }
+
+    if (!images.length) throw new Error('عکس‌ها لود نشدند');
+
+    var W = 1280, H = 720;
+    var canvas = document.createElement('canvas');
+    canvas.width = W;
+    canvas.height = H;
+    var ctx = canvas.getContext('2d');
+
+    var stream = canvas.captureStream(30);
+
+    var mimeType = 'video/webm;codecs=vp9';
+    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8';
+    if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+
+    var recorder = new MediaRecorder(stream, {
+      mimeType: mimeType,
+      videoBitsPerSecond: 4000000
+    });
+
+    var chunks = [];
+    recorder.ondataavailable = function(e) {
+      if (e.data.size > 0) chunks.push(e.data);
+    };
+
+    var donePromise = new Promise(function(resolve) {
+      recorder.onstop = resolve;
+    });
+
+    recorder.start(100);
+
+    var total = images.length;
+    for (var j = 0; j < total; j++) {
+      if (this._cancelled) break;
+      var img = images[j];
+      var direction = this.DIRECTIONS[j % this.DIRECTIONS.length];
+      await this._animateKenBurns(ctx, img, W, H, this.IMAGE_DURATION, direction);
+      var p = 55 + ((j + 1) / total) * 40;
+      if (this._loader) this._loader.setProgress(p);
+    }
+
+    await this._delay(300);
+
+    recorder.stop();
+    await donePromise;
+
+    return new Blob(chunks, { type: 'video/webm' });
+  },
+
+  _loadImage: function(url) {
     return new Promise(function(resolve, reject) {
-      var poll = async function() {
-        attempt++;
-
-        if (attempt > maxAttempts) {
-          reject(new Error('زمان ساخت ویدیو تموم شد'));
-          return;
-        }
-
-        try {
-          var res = await fetch(self.API_BASE + '/videos/generations/' + videoId, {
-            method: 'GET',
-            headers: {
-              'Authorization': 'Bearer ' + self._apiKey
-            }
-          });
-
-          if (!res.ok) {
-            if (res.status === 404 || res.status === 400) {
-              self._pollTimer = setTimeout(poll, 5000);
-              return;
-            }
-            throw new Error('خطا در بررسی وضعیت');
-          }
-
-          var data = await res.json();
-          console.log('Poll #' + attempt + ':', data.status || data.state);
-
-          var progress = 20 + Math.min(65, (attempt / maxAttempts) * 65);
-          if (self._loader) {
-            self._loader.setProgress(progress);
-            self._loader.setTitle('در حال پردازش...');
-            self._loader.setSub('ممکنه ۱ تا ۳ دقیقه طول بکشه');
-          }
-
-          var status = data.status || data.state;
-
-          if (status === 'completed' || status === 'succeeded' || status === 'success') {
-            var url = data.video_url || data.url || (data.output && data.output[0]) || (data.data && data.data[0] && data.data[0].url);
-            if (url) {
-              resolve(url);
-              return;
-            }
-          }
-
-          if (status === 'failed' || status === 'error') {
-            var errMsg = data.error || (data.error_message) || 'ساخت ویدیو شکست خورد';
-            reject(new Error(errMsg));
-            return;
-          }
-
-          self._pollTimer = setTimeout(poll, 5000);
-
-        } catch (err) {
-          console.warn('Poll error:', err);
-          self._pollTimer = setTimeout(poll, 5000);
-        }
+      var img = new Image();
+      img.crossOrigin = 'anonymous';
+      var timeout = setTimeout(function() {
+        reject(new Error('زمان لود عکس تموم شد'));
+      }, 15000);
+      img.onload = function() {
+        clearTimeout(timeout);
+        resolve(img);
       };
-
-      poll();
+      img.onerror = function() {
+        clearTimeout(timeout);
+        reject(new Error('خطا در لود عکس'));
+      };
+      img.src = url;
     });
   },
 
-  _clearTimers: function() {
-    if (this._pollTimer) {
-      clearTimeout(this._pollTimer);
-      this._pollTimer = null;
-    }
+  _animateKenBurns: function(ctx, img, W, H, duration, direction) {
+    var self = this;
+    return new Promise(function(resolve) {
+      var startTime = performance.now();
+      var baseScale = Math.max(W / img.width, H / img.height);
+
+      var zoomFrom = 1.0, zoomTo = 1.0;
+      var panXFrom = 0, panXTo = 0;
+      var panYFrom = 0, panYTo = 0;
+
+      if (direction === 'zoom-in') { zoomFrom = 1.0; zoomTo = 1.22; }
+      else if (direction === 'zoom-out') { zoomFrom = 1.22; zoomTo = 1.0; }
+      else if (direction === 'pan-left') { zoomFrom = 1.18; zoomTo = 1.18; panXFrom = 0.7; panXTo = -0.7; }
+      else if (direction === 'pan-right') { zoomFrom = 1.18; zoomTo = 1.18; panXFrom = -0.7; panXTo = 0.7; }
+      else if (direction === 'pan-up') { zoomFrom = 1.18; zoomTo = 1.18; panYFrom = 0.7; panYTo = -0.7; }
+      else if (direction === 'pan-down') { zoomFrom = 1.18; zoomTo = 1.18; panYFrom = -0.7; panYTo = 0.7; }
+
+      var draw = function() {
+        if (self._cancelled) { resolve(); return; }
+
+        var elapsed = performance.now() - startTime;
+        var t = Math.min(1, elapsed / duration);
+        var st = t * t * (3 - 2 * t);
+
+        var zoom = zoomFrom + (zoomTo - zoomFrom) * st;
+        var scale = baseScale * zoom;
+
+        var drawW = img.width * scale;
+        var drawH = img.height * scale;
+
+        var maxPanX = Math.max(0, (drawW - W) / 2);
+        var maxPanY = Math.max(0, (drawH - H) / 2);
+
+        var panX = (panXFrom + (panXTo - panXFrom) * st) * maxPanX;
+        var panY = (panYFrom + (panYTo - panYFrom) * st) * maxPanY;
+
+        var x = (W - drawW) / 2 + panX;
+        var y = (H - drawH) / 2 + panY;
+
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, W, H);
+
+        try {
+          ctx.drawImage(img, x, y, drawW, drawH);
+        } catch(e) {
+          console.warn('draw error:', e);
+        }
+
+        if (elapsed < duration) {
+          requestAnimationFrame(draw);
+        } else {
+          resolve();
+        }
+      };
+
+      draw();
+    });
   },
 
-  _showResult: function(container, url) {
+  _showResult: function(url) {
+    var container = document.getElementById('videoResult');
+    if (!container) return;
+
     container.innerHTML = '';
 
     var video = document.createElement('video');
@@ -330,11 +316,11 @@ var VIDEO = {
     dl.onclick = function() { VIDEO.download(); };
     actions.appendChild(dl);
 
-    var cp = document.createElement('button');
-    cp.className = 'result-btn';
-    cp.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> کپی لینک';
-    cp.onclick = function() { APP.copyUrl(VIDEO._lastUrl); };
-    actions.appendChild(cp);
+    var ag = document.createElement('button');
+    ag.className = 'result-btn';
+    ag.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> دوباره';
+    ag.onclick = function() { VIDEO.generate(); };
+    actions.appendChild(ag);
 
     container.appendChild(actions);
 
@@ -343,9 +329,23 @@ var VIDEO = {
     }, 300);
   },
 
+  _extractUrl: function(el) {
+    if (!el) return null;
+    if (typeof el === 'string') return el;
+    if (el.src) return el.src;
+    if (el.url) return el.url;
+    if (el.querySelector) {
+      var img = el.querySelector('img');
+      if (img) return img.src;
+    }
+    return null;
+  },
+
   download: function() {
-    if (!this._lastUrl) return;
-    APP.downloadFile(this._lastUrl, 'setareh-video-' + Date.now() + '.mp4');
+    if (!this._lastBlob) return;
+    var url = URL.createObjectURL(this._lastBlob);
+    APP.downloadFile(url, 'setareh-video-' + Date.now() + '.webm');
+    setTimeout(function() { URL.revokeObjectURL(url); }, 5000);
   },
 
   _delay: function(ms) {
