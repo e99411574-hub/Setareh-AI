@@ -1,0 +1,589 @@
+/* ===== css/main.css — طراحی Setareh AI ===== */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  font-family: 'Vazirmatn', system-ui, -apple-system, sans-serif;
+  background: #f5edf8;
+  color: #2d1b4e;
+  min-height: 100vh;
+  overflow-x: hidden;
+  direction: rtl;
+}
+
+body {
+  padding-bottom: 90px;
+  padding-top: 70px;
+}
+
+body.dark-mode {
+  background: #0f0820;
+  color: #e8e0f5;
+}
+
+/* ============ نوار بالا ============ */
+.top-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: linear-gradient(135deg, #6C5CE7, #0984E3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  z-index: 100;
+  box-shadow: 0 2px 16px rgba(108, 92, 231, 0.3);
+  padding-top: env(safe-area-inset-top);
+  height: calc(60px + env(safe-area-inset-top));
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-weight: 900;
+  font-size: 17px;
+}
+
+.logo-icon {
+  font-size: 22px;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
+.theme-btn {
+  background: rgba(255,255,255,.2);
+  border: none;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform .15s ease;
+}
+
+.theme-btn:active {
+  transform: scale(0.9);
+}
+
+/* ============ بخش اصلی ============ */
+.app {
+  padding: 16px;
+  max-width: 700px;
+  margin: 0 auto;
+}
+
+.view {
+  display: none;
+  animation: fadeIn .3s ease;
+}
+
+.view.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============ هدر پنل ============ */
+.panel-header {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.panel-header h1 {
+  font-size: 22px;
+  font-weight: 900;
+  color: #2d1b4e;
+  margin-bottom: 4px;
+}
+
+body.dark-mode .panel-header h1 {
+  color: #f0e8ff;
+}
+
+.panel-sub {
+  font-size: 13px;
+  color: #8b7bab;
+  font-weight: 600;
+}
+
+/* ============ کارت ورودی ============ */
+.input-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 16px;
+  box-shadow: 0 4px 20px rgba(120, 80, 180, 0.1);
+  margin-bottom: 16px;
+}
+
+body.dark-mode .input-card {
+  background: #1a1230;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+textarea, .text-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid #e8dcf5;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 14px;
+  color: #2d1b4e;
+  background: #faf8ff;
+  resize: vertical;
+  min-height: 70px;
+  outline: none;
+  transition: all .2s ease;
+  margin-bottom: 12px;
+}
+
+.text-input {
+  min-height: auto;
+  margin-bottom: 12px;
+}
+
+textarea:focus, .text-input:focus {
+  border-color: #6C5CE7;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(108, 92, 231, 0.1);
+}
+
+body.dark-mode textarea,
+body.dark-mode .text-input {
+  background: #2a2145;
+  border-color: #3a2e5c;
+  color: #f0e8ff;
+}
+
+textarea::placeholder, .text-input::placeholder {
+  color: #b8a8d8;
+}
+
+/* ============ دکمهٔ اصلی ============ */
+.btn-primary {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(135deg, #6C5CE7, #0984E3);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  font-family: inherit;
+  font-weight: 900;
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 6px 20px rgba(108, 92, 231, 0.35);
+  transition: transform .15s ease;
+  margin-top: 8px;
+}
+
+.btn-primary:active {
+  transform: scale(.97);
+}
+
+.btn-primary:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+/* ============ تب‌های داخلی ============ */
+.tabs {
+  display: flex;
+  gap: 6px;
+  background: rgba(108, 92, 231, 0.1);
+  padding: 4px;
+  border-radius: 14px;
+  margin-bottom: 16px;
+}
+
+.tab {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 10px;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  background: transparent;
+  color: #6C5CE7;
+  transition: all .2s ease;
+}
+
+.tab.active {
+  background: linear-gradient(135deg, #6C5CE7, #0984E3);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3);
+}
+
+body.dark-mode .tabs {
+  background: rgba(108, 92, 231, 0.2);
+}
+
+/* ============ ناحیهٔ آپلود ============ */
+.upload-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 30px 20px;
+  border: 2px dashed #b8a8d8;
+  border-radius: 14px;
+  cursor: pointer;
+  color: #6C5CE7;
+  font-weight: 700;
+  font-size: 13px;
+  transition: all .2s ease;
+  margin-bottom: 12px;
+}
+
+.upload-area:active {
+  background: rgba(108, 92, 231, 0.05);
+  border-color: #6C5CE7;
+}
+
+.upload-icon {
+  font-size: 32px;
+}
+
+/* ============ پیش‌نمایش ============ */
+#videoImagePreview,
+#editImagePreview {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+#videoImagePreview img,
+#editImagePreview img {
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* ============ لیست ویدیوهای ترکیب ============ */
+.merge-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.merge-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #e8dcf5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+}
+
+.merge-item video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.merge-item .rm-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0,0,0,.6);
+  color: #fff;
+  border: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ============ نتیجه ============ */
+.result-area {
+  margin-top: 16px;
+}
+
+.result-area img,
+.result-area video {
+  width: 100%;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(108, 92, 231, 0.2);
+  animation: popIn .4s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+@keyframes popIn {
+  from { transform: scale(.9); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.result-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.result-btn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 12px;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #fff;
+  color: #6C5CE7;
+  border: 2px solid #e8dcf5;
+}
+
+.result-btn:active {
+  transform: scale(.97);
+}
+
+/* ============ لودینگ ============ */
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  color: #6C5CE7;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(108, 92, 231, 0.2);
+  border-top-color: #6C5CE7;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============ چت ============ */
+.chat-area {
+  background: #fff;
+  border-radius: 20px;
+  padding: 16px;
+  min-height: 400px;
+  max-height: 60vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 20px rgba(120, 80, 180, 0.1);
+}
+
+body.dark-mode .chat-area {
+  background: #1a1230;
+}
+
+.chat-msg {
+  display: flex;
+  max-width: 85%;
+}
+
+.chat-msg.user {
+  align-self: flex-end;
+  justify-content: flex-end;
+}
+
+.chat-msg.ai {
+  align-self: flex-start;
+}
+
+.chat-bubble {
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.6;
+  word-wrap: break-word;
+}
+
+.chat-msg.ai .chat-bubble {
+  background: #f0e8fc;
+  color: #2d1b4e;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-msg.user .chat-bubble {
+  background: linear-gradient(135deg, #6C5CE7, #0984E3);
+  color: #fff;
+  border-bottom-left-radius: 4px;
+}
+
+body.dark-mode .chat-msg.ai .chat-bubble {
+  background: #2a2145;
+  color: #f0e8ff;
+}
+
+.chat-input-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.chat-input-bar input {
+  flex: 1;
+  padding: 12px 16px;
+  border: 2px solid #e8dcf5;
+  border-radius: 24px;
+  font-family: inherit;
+  font-size: 14px;
+  background: #faf8ff;
+  outline: none;
+}
+
+.chat-input-bar input:focus {
+  border-color: #6C5CE7;
+}
+
+body.dark-mode .chat-input-bar input {
+  background: #2a2145;
+  border-color: #3a2e5c;
+  color: #f0e8ff;
+}
+
+.chat-send {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6C5CE7, #0984E3);
+  color: #fff;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(108, 92, 231, 0.35);
+}
+
+.chat-send:active {
+  transform: scale(.92);
+}
+
+/* ============ نوار پایین ============ */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 70px;
+  background: #fff;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  box-shadow: 0 -4px 20px rgba(120, 80, 180, 0.1);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 100;
+}
+
+body.dark-mode .bottom-nav {
+  background: #1a1230;
+}
+
+.nav-btn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  color: #b8a8d8;
+  font-family: inherit;
+  padding: 8px 0;
+  transition: color .2s ease;
+  position: relative;
+}
+
+.nav-btn.active {
+  color: #6C5CE7;
+}
+
+.nav-btn.active::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 25%;
+  right: 25%;
+  height: 3px;
+  background: linear-gradient(135deg, #6C5CE7, #0984E3);
+  border-radius: 0 0 3px 3px;
+}
+
+.nav-icon {
+  font-size: 22px;
+}
+
+.nav-label {
+  font-size: 10px;
+  font-weight: 800;
+}
+
+/* ============ Toast ============ */
+.toast {
+  position: fixed;
+  bottom: 90px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #2d1b4e;
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  z-index: 9999;
+  opacity: 0;
+  transition: all .3s cubic-bezier(.34, 1.56, .64, 1);
+  max-width: 90%;
+  text-align: center;
+  pointer-events: none;
+}
+
+.toast.on {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ============ حالت شب ============ */
+body.dark-mode .result-btn {
+  background: #1a1230;
+  border-color: #3a2e5c;
+  }
