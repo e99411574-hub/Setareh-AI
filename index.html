@@ -63,28 +63,6 @@
       </svg>
       <span>ساخت عکس</span>
     </button>
-    <button class="side-item" data-go="video">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="23 7 16 12 23 17 23 7"/>
-        <rect x="1" y="5" width="15" height="14" rx="2"/>
-      </svg>
-      <span>ساخت ویدیو</span>
-    </button>
-    <button class="side-item" data-go="merge">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="2" y="2" width="20" height="20" rx="2"/>
-        <line x1="7" y1="2" x2="7" y2="22"/>
-        <line x1="17" y1="2" x2="17" y2="22"/>
-      </svg>
-      <span>ترکیب ویدیو</span>
-    </button>
-    <button class="side-item" data-go="edit">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 20h9"/>
-        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-      </svg>
-      <span>ویرایش عکس</span>
-    </button>
     <button class="side-item" data-go="tts">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
@@ -209,91 +187,7 @@
     <div id="imageResult" class="result-area"></div>
   </section>
 
-  <!-- ============ پنل ۳: ساخت ویدیو ============ -->
-  <section id="view-video" class="view">
-    <div class="panel-header">
-      <h1>ساخت ویدیو</h1>
-      <p class="panel-sub">از متن یا عکس، ویدیو بساز</p>
-    </div>
-
-    <div class="tabs">
-      <button class="tab active" data-mode="text">از متن</button>
-      <button class="tab" data-mode="image">از عکس</button>
-    </div>
-
-    <div class="input-card" id="videoTextMode">
-      <textarea id="videoPrompt" placeholder="مثلاً: یه پرنده که روی دریا پرواز می‌کنه، غروب" rows="3"></textarea>
-    </div>
-
-    <div class="input-card" id="videoImageMode" style="display:none">
-      <label class="upload-area" for="videoImageInput">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="17 8 12 3 7 8"/>
-          <line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
-        <span>عکس رو انتخاب کن</span>
-        <input type="file" id="videoImageInput" accept="image/*" style="display:none">
-      </label>
-      <div id="videoImagePreview"></div>
-      <input type="text" id="videoImagePrompt" placeholder="توضیح بده چی اتفاق بیفته (اختیاری)" class="text-input">
-    </div>
-
-    <button class="btn-primary" id="videoBtn">ساخت ویدیو</button>
-
-    <div id="videoResult" class="result-area"></div>
-  </section>
-
-  <!-- ============ پنل ۴: ترکیب ویدیو ============ -->
-  <section id="view-merge" class="view">
-    <div class="panel-header">
-      <h1>ترکیب ویدیو</h1>
-      <p class="panel-sub">چند تا ویدیو رو بچسبون به هم</p>
-    </div>
-
-    <div class="input-card">
-      <label class="upload-area" for="mergeInput">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="17 8 12 3 7 8"/>
-          <line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
-        <span>ویدیوها رو انتخاب کن</span>
-        <input type="file" id="mergeInput" accept="video/*" multiple style="display:none">
-      </label>
-      <div id="mergePreview" class="merge-list"></div>
-      <button class="btn-primary" id="mergeBtn">ترکیب کن</button>
-    </div>
-
-    <div id="mergeResult" class="result-area"></div>
-  </section>
-
-  <!-- ============ پنل ۵: ویرایش عکس ============ -->
-  <section id="view-edit" class="view">
-    <div class="panel-header">
-      <h1>ویرایش عکس</h1>
-      <p class="panel-sub">عکست رو با هوش مصنوعی ویرایش کن</p>
-    </div>
-
-    <div class="input-card">
-      <label class="upload-area" for="editImageInput">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-          <polyline points="17 8 12 3 7 8"/>
-          <line x1="12" y1="3" x2="12" y2="15"/>
-        </svg>
-        <span>عکس رو انتخاب کن</span>
-        <input type="file" id="editImageInput" accept="image/*" style="display:none">
-      </label>
-      <div id="editImagePreview"></div>
-      <textarea id="editPrompt" placeholder="مثلاً: این عکس رو به سبک انیمه تبدیل کن" rows="2"></textarea>
-      <button class="btn-primary" id="editBtn">ویرایش کن</button>
-    </div>
-
-    <div id="editResult" class="result-area"></div>
-  </section>
-
-  <!-- ============ پنل ۶: تبدیل متن به صدا ============ -->
+  <!-- ============ پنل ۳: تبدیل متن به صدا ============ -->
   <section id="view-tts" class="view">
     <div class="panel-header">
       <h1>تبدیل متن به صدا</h1>
@@ -355,28 +249,6 @@
     </svg>
     <span>عکس</span>
   </button>
-  <button class="nav-btn" data-view="video">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <polygon points="23 7 16 12 23 17 23 7"/>
-      <rect x="1" y="5" width="15" height="14" rx="2"/>
-    </svg>
-    <span>ویدیو</span>
-  </button>
-  <button class="nav-btn" data-view="merge">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="2" y="2" width="20" height="20" rx="2"/>
-      <line x1="7" y1="2" x2="7" y2="22"/>
-      <line x1="17" y1="2" x2="17" y2="22"/>
-    </svg>
-    <span>ترکیب</span>
-  </button>
-  <button class="nav-btn" data-view="edit">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M12 20h9"/>
-      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-    </svg>
-    <span>ویرایش</span>
-  </button>
   <button class="nav-btn" data-view="tts">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
@@ -394,12 +266,9 @@
 <!-- ============ اسکریپت‌ها ============ -->
 <script src="js/router.js"></script>
 <script src="js/image.js"></script>
-<script src="js/video.js"></script>
-<script src="js/merge.js"></script>
 <script src="js/chat.js"></script>
-<script src="js/edit.js"></script>
 <script src="js/tts.js"></script>
 <script src="js/app.js"></script>
 
 </body>
-        </html>
+    </html>
