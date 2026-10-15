@@ -81,29 +81,21 @@ var EDIT = {
     btn.disabled = true;
     APP.vibrate(20);
 
+    // اسکرول به نتیجه
+    setTimeout(function() {
+      if (result) result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+
+    // لودینگ پویا
     this._loader = APP.startLoading('editResult', {
       title: 'در حال ویرایش عکس...',
       sub: 'ممکنه ۲۰ تا ۶۰ ثانیه طول بکشه',
-      duration: 45000
+      duration: 40000,
+      maxReal: 85
     });
 
     try {
-      // درخواست با Puter
-      var response = await puter.ai.chat(
-        'Edit this image with this instruction: "' + prompt + '". Generate a new image based on this. ' +
-        'Return only the edited image.',
-        this._file
-      );
-
-      // استخراج URL
-      var url = this._extractUrl(response);
-
-      if (!url) {
-        // اگه مستقیم عکس نداد، از متن به عکس استفاده کن
-        var description = await this._describeAndGenerate(prompt);
-        url = description;
-      }
-
+      var url = await this._processEdit(prompt);
       if (!url) throw new Error('عکس ویرایش‌شده تولید نشد');
 
       this._lastUrl = url;
@@ -112,9 +104,8 @@ var EDIT = {
         this._loader.setTitle('تمام شد!');
         this._loader.finish();
       }
-      await this._delay(400);
+      await this._delay(500);
 
-      // نمایش
       this._showResult(result, url);
 
       APP.toast('عکس ویرایش شد');
@@ -134,40 +125,49 @@ var EDIT = {
     }
   },
 
-  // ============ توصیف + ساخت از نو ============
-  _describeAndGenerate: async function(prompt) {
-    try {
-      // توصیف عکس
-      var base64 = await new Promise(function(resolve, reject) {
-        var reader = new FileReader();
-        reader.onload = function() { resolve(reader.result); };
-        reader.onerror = reject;
-        reader.readAsDataURL(EDIT._file);
-      });
+  // ============ پردازش ویرایش ============
+  _processEdit: async function(prompt) {
+    var self = this;
 
-      var descRes = await puter.ai.chat(
-        'Describe this image in detail in English (max 50 words), then say: now modified with: "' + prompt + '"',
-        base64
-      );
-
-      var descText = '';
-      if (typeof descRes === 'string') descText = descRes;
-      else if (descRes && descRes.message && descRes.message.content) {
-        var c = descRes.message.content;
-        descText = Array.isArray(c) ? c.map(function(x) { return x.text || x; }).join(' ') : c;
-      } else if (descRes && descRes.text) descText = descRes.text;
-      else if (descRes && descRes.toString) descText = descRes.toString();
-
-      if (!descText) return null;
-
-      // ساخت عکس از توصیف
-      var imgRes = await puter.ai.txt2img(descText + '. ' + prompt);
-      return EDIT._extractUrl(imgRes);
-
-    } catch(e) {
-      console.warn('describeAndGenerate error:', e);
-      return null;
+    // مرحله ۱: توصیف عکس
+    if (this._loader) {
+      this._loader.setTitle('در حال تحلیل عکس...');
+      this._loader.setProgress(15);
     }
+
+    var base64 = await new Promise(function(resolve, reject) {
+      var reader = new FileReader();
+      reader.onload = function() { resolve(reader.result); };
+      reader.onerror = reject;
+      reader.readAsDataURL(self._file);
+    });
+
+    var descRes = await puter.ai.chat(
+      'Describe this image in detail in English (max 60 words). Focus on: subject, colors, style, composition, lighting, mood. Only return the description, no introduction.',
+      base64
+    );
+
+    var descText = '';
+    if (typeof descRes === 'string') descText = descRes;
+    else if (descRes && descRes.message && descRes.message.content) {
+      var c = descRes.message.content;
+      descText = Array.isArray(c) ? c.map(function(x) { return x.text || x; }).join(' ') : c;
+    } else if (descRes && descRes.text) descText = descRes.text;
+    else if (descRes && descRes.toString) descText = descRes.toString();
+
+    if (!descText) throw new Error('توصیف عکس ممکن نشد');
+
+    if (this._loader) {
+      this._loader.setTitle('در حال ساخت عکس جدید...');
+      this._loader.setSub('این ممکنه کمی طول بکشه');
+      this._loader.setProgress(35);
+    }
+
+    // مرحله ۲: ساخت عکس از توصیف + تغییر
+    var newPrompt = descText + '. Now modify this image: ' + prompt;
+
+    var imgRes = await puter.ai.txt2img(newPrompt);
+    return this._extractUrl(imgRes);
   },
 
   _extractUrl: function(el) {
@@ -205,7 +205,18 @@ var EDIT = {
     cp.onclick = function() { APP.copyUrl(EDIT._lastUrl); };
     actions.appendChild(cp);
 
+    var ag = document.createElement('button');
+    ag.className = 'result-btn';
+    ag.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> دوباره';
+    ag.onclick = function() { EDIT.generate(); };
+    actions.appendChild(ag);
+
     container.appendChild(actions);
+
+    // اسکرول خودکار
+    setTimeout(function() {
+      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
   },
 
   download: function() {
