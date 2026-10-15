@@ -43,33 +43,32 @@ var IMAGE = {
     btn.disabled = true;
     APP.vibrate(20);
 
-    // شروع لودینگ پویا
+    // اسکرول به نتیجه
+    setTimeout(function() {
+      if (result) result.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+
+    // لودینگ پویا
     this._loader = APP.startLoading('imageResult', {
       title: 'در حال ساخت عکس...',
       sub: 'ممکنه ۱۰ تا ۳۰ ثانیه طول بکشه',
-      duration: 25000
+      duration: 25000,
+      maxReal: 88
     });
 
     try {
-      // درخواست به Puter
       var imageElement = await puter.ai.txt2img(text);
-
-      // استخراج URL
       var url = this._extractUrl(imageElement);
       if (!url) throw new Error('عکسی تولید نشد');
 
       this._lastUrl = url;
 
-      // پایان لودینگ
       if (this._loader) {
         this._loader.setTitle('تمام شد!');
         this._loader.finish();
       }
+      await this._delay(500);
 
-      // تاخیر کوتاه برای دیدن ۱۰۰٪
-      await this._delay(400);
-
-      // نمایش نتیجه
       this._showResult(result, url, text);
 
       APP.toast('عکس ساخته شد');
@@ -89,7 +88,6 @@ var IMAGE = {
     }
   },
 
-  // ============ استخراج URL ============
   _extractUrl: function(el) {
     if (!el) return null;
     if (typeof el === 'string') return el;
@@ -104,7 +102,6 @@ var IMAGE = {
     return null;
   },
 
-  // ============ نمایش نتیجه ============
   _showResult: function(container, url, promptText) {
     container.innerHTML = '';
 
@@ -136,9 +133,13 @@ var IMAGE = {
     actions.appendChild(ag);
 
     container.appendChild(actions);
+
+    // اسکرول خودکار
+    setTimeout(function() {
+      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
   },
 
-  // ============ دانلود ============
   download: async function(promptText) {
     if (!this._lastUrl) return;
     try {
@@ -149,7 +150,6 @@ var IMAGE = {
     }
   },
 
-  // ============ تاخیر ============
   _delay: function(ms) {
     return new Promise(function(resolve) { setTimeout(resolve, ms); });
   }
