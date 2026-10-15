@@ -1203,3 +1203,85 @@ body[data-theme="light"] .bottom-nav {
   border-radius: 100px;
 }
 ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+/* ============ دکمه‌های اکشن پیام‌ها ============ */
+.chat-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 0 8px;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.chat-msg:hover .chat-actions,
+.chat-msg:active .chat-actions {
+  opacity: 1;
+}
+
+.chat-msg.user .chat-actions {
+  justify-content: flex-end;
+}
+
+.chat-msg.ai .chat-actions {
+  justify-content: flex-start;
+}
+
+.chat-action-btn {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.chat-action-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.chat-action-btn:active {
+  background: var(--bg-4);
+  transform: scale(0.9);
+  color: var(--accent);
+}
+
+.chat-action-custom {
+  width: auto;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--accent-grad);
+  color: #fff;
+  border: none;
+  height: 30px;
+  border-radius: 8px;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(108, 92, 231, 0.3);
+}
+
+.chat-action-custom:active {
+  transform: scale(0.95);
+  opacity: 0.9;
+}
+
+/* چیدمان پیام با دکمه‌ها */
+.chat-msg {
+  flex-direction: column;
+}
+
+.chat-msg.user {
+  align-items: flex-end;
+}
+
+.chat-msg.ai {
+  align-items: flex-start;
+}
