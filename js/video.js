@@ -5,6 +5,7 @@ var VIDEO = {
   _file: null,
   _lastUrl: null,
   _loader: null,
+  _timeoutId: null,
 
   init: function() {
     var self = this;
@@ -114,16 +115,15 @@ var VIDEO = {
     btn.disabled = true;
     APP.vibrate(20);
 
-    // اسکرول به نتیجه
     setTimeout(function() {
       if (result) result.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
 
-    // لودینگ پویا با maxReal
+    // لودینگ پویا
     this._loader = APP.startLoading('videoResult', {
       title: imageFile ? 'در حال تحلیل عکس...' : 'در حال ساخت ویدیو...',
-      sub: 'ممکنه ۳۰ تا ۹۰ ثانیه طول بکشه',
-      duration: 50000,
+      sub: 'ممکنه ۱ تا ۲ دقیقه طول بکشه',
+      duration: 120000,
       maxReal: 85
     });
 
@@ -137,22 +137,43 @@ var VIDEO = {
           if (description) {
             finalPrompt = description;
             if (promptText) finalPrompt += '. ' + promptText;
-            console.log('توصیف عکس:', description);
           }
         } catch(descErr) {
-          console.warn('vision error:', descErr);
           finalPrompt = promptText || 'animated scene from this image';
         }
 
         if (this._loader) {
           this._loader.setTitle('در حال ساخت ویدیو...');
-          this._loader.setSub('ممکنه ۳۰ تا ۹۰ ثانیه طول بکشه');
           this._loader.setProgress(25);
         }
       }
 
-      // درخواست ویدیو
-      var videoElement = await puter.ai.txt2vid(finalPrompt);
+      // ============ درخواست با timeout ============
+      var self = this;
+      var videoElement = await new Promise(function(resolve, reject) {
+        var done = false;
+
+        self._timeoutId = setTimeout(function() {
+          if (!done) {
+            done = true;
+            reject(new Error('زمان ساخت ویدیو تموم شد. لطفاً بعداً امتحان کن.'));
+          }
+        }, 120000); // ۲ دقیقه
+
+        puter.ai.txt2vid(finalPrompt).then(function(res) {
+          if (!done) {
+            done = true;
+            clearTimeout(self._timeoutId);
+            resolve(res);
+          }
+        }).catch(function(err) {
+          if (!done) {
+            done = true;
+            clearTimeout(self._timeoutId);
+            reject(err);
+          }
+        });
+      });
 
       var url = this._extractUrl(videoElement);
       if (!url) throw new Error('ویدیویی تولید نشد');
@@ -173,18 +194,26 @@ var VIDEO = {
     } catch (err) {
       console.error('video error:', err);
       if (this._loader) this._loader.stop();
+      if (this._timeoutId) clearTimeout(this._timeoutId);
+
       var msg = err.message || 'خطای ناشناخته';
       if (msg.length > 100) msg = msg.substring(0, 100) + '...';
-      APP.showError('videoResult', 'خطا در ساخت ویدیو: ' + msg);
+
+      APP.showError('videoResult',
+        '⚠️ ' + msg + '\n\n' +
+        'راه‌حل:\n' +
+        '• بعداً دوباره امتحان کن\n' +
+        '• از پرامپت کوتاه‌تر استفاده کن\n' +
+        '• پنل «عکس» سریع‌تره');
       APP.toast('خطا در ساخت');
       APP.vibrate(50);
     } finally {
       btn.disabled = false;
       this._loader = null;
+      this._timeoutId = null;
     }
   },
 
-  // ============ توصیف عکس با Vision ============
   _describeImage: async function(file) {
     try {
       var base64 = await new Promise(function(resolve, reject) {
@@ -195,7 +224,7 @@ var VIDEO = {
       });
 
       var response = await puter.ai.chat(
-        'Describe this image in detail, in English, in about 40 words. Focus on subject, colors, lighting, mood, environment. Only return the description.',
+        'Describe this image in detail, in English, in about 40 words. Only return the description.',
         base64
       );
 
@@ -209,7 +238,6 @@ var VIDEO = {
 
       return (text || '').trim().substring(0, 300);
     } catch (e) {
-      console.warn('describeImage error:', e);
       return null;
     }
   },
@@ -256,7 +284,6 @@ var VIDEO = {
 
     container.appendChild(actions);
 
-    // اسکرول خودکار
     setTimeout(function() {
       container.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 300);
