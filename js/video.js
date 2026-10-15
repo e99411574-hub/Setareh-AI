@@ -1,14 +1,21 @@
-// ===== js/video.js — ساخت ویدیو با هوش مصنوعی =====
+// ===== js/video.js — ساخت ویدیو با Agnes AI =====
 
 var VIDEO = {
   _mode: 'text',
   _file: null,
   _lastUrl: null,
   _loader: null,
-  _timeoutId: null,
+  _apiKey: '',
+  _pollTimer: null,
+  _videoId: null,
+
+  API_BASE: 'https://apihub.agnes-ai.com/v1',
+  MODEL: 'agnes-video-v2.0',
 
   init: function() {
     var self = this;
+
+    this._apiKey = localStorage.getItem('agnes_api_key') || '';
 
     document.querySelectorAll('.tab').forEach(function(tab) {
       tab.addEventListener('click', function() {
@@ -35,20 +42,61 @@ var VIDEO = {
       });
     }
 
-    console.log('🎬 VIDEO: آماده');
+    if (!this._apiKey) {
+      this._showApiKeyForm();
+    }
+
+    console.log('🎬 VIDEO: آماده (Agnes AI)');
+  },
+
+  // ============ فرم API Key ============
+  _showApiKeyForm: function() {
+    var result = document.getElementById('videoResult');
+    if (!result) return;
+
+    result.innerHTML =
+      '<div style="padding:20px;background:var(--bg-2);border:1px solid var(--border);border-radius:16px;">' +
+        '<div style="font-weight:800;font-size:15px;color:var(--text);margin-bottom:8px;">🔑 تنظیم API Key</div>' +
+        '<div style="font-size:13px;color:var(--text-2);line-height:1.7;margin-bottom:12px;">' +
+          'برای ساخت ویدیو، اول یه API Key رایگان از Agnes AI بگیر:' +
+        '</div>' +
+        '<div style="background:var(--bg-3);padding:10px;border-radius:10px;margin-bottom:10px;font-size:11px;color:var(--text-3);line-height:1.6;">' +
+          '⚠️ برای دسترسی به Agnes باید VPN روشن باشه' +
+        '</div>' +
+        '<a href="https://platform.agnes-ai.com" target="_blank" style="display:block;text-align:center;padding:10px;background:var(--accent-grad);color:#fff;border-radius:12px;text-decoration:none;font-weight:700;font-size:13px;margin-bottom:10px;">' +
+          '🔗 رفتن به Agnes AI' +
+        '</a>' +
+        '<input type="text" id="agnesKeyInput" placeholder="API Key رو اینجا پیست کن (sk-...)" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:12px;background:var(--bg-3);color:var(--text);font-family:monospace;font-size:11px;margin-bottom:10px;direction:ltr;text-align:center;box-sizing:border-box;" value="' + (this._apiKey || '') + '">' +
+        '<button onclick="VIDEO.saveApiKey()" style="width:100%;padding:12px;background:var(--accent-grad);color:#fff;border:none;border-radius:12px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;">' +
+          'ذخیره' +
+        '</button>' +
+      '</div>';
+  },
+
+  saveApiKey: function() {
+    var input = document.getElementById('agnesKeyInput');
+    if (!input) return;
+    var key = (input.value || '').trim();
+    if (!key || key.length < 10) {
+      APP.toast('❌ API Key معتبر نیست');
+      return;
+    }
+    localStorage.setItem('agnes_api_key', key);
+    this._apiKey = key;
+    APP.toast('✅ ذخیره شد');
+    APP.vibrate(30);
+    var result = document.getElementById('videoResult');
+    if (result) result.innerHTML = '';
   },
 
   setMode: function(mode) {
     this._mode = mode;
-
     document.querySelectorAll('.tab').forEach(function(t) {
       if (t.getAttribute('data-mode') === mode) t.classList.add('active');
       else t.classList.remove('active');
     });
-
     var textMode = document.getElementById('videoTextMode');
     var imageMode = document.getElementById('videoImageMode');
-
     if (mode === 'text') {
       if (textMode) textMode.style.display = 'block';
       if (imageMode) imageMode.style.display = 'none';
@@ -56,60 +104,42 @@ var VIDEO = {
       if (textMode) textMode.style.display = 'none';
       if (imageMode) imageMode.style.display = 'block';
     }
-
     APP.vibrate(15);
   },
 
   onFileSelect: function(e) {
     var file = e.target.files[0];
     if (!file) return;
-
     if (file.size > 10 * 1024 * 1024) {
-      APP.toast('عکس بزرگه (حداکثر ۱۰MB)');
+      APP.toast('عکس بزرگه');
       return;
     }
-
     this._file = file;
-
     var preview = document.getElementById('videoImagePreview');
     var reader = new FileReader();
     reader.onload = function(ev) {
       preview.innerHTML = '<img src="' + ev.target.result + '" alt="preview">';
     };
     reader.readAsDataURL(file);
-
-    APP.vibrate(20);
   },
 
   generate: async function() {
     var result = document.getElementById('videoResult');
     var btn = document.getElementById('videoBtn');
 
-    if (typeof puter === 'undefined' || !puter.ai) {
-      APP.toast('اتصال برقرار نیست');
+    if (!this._apiKey) {
+      this._showApiKeyForm();
+      APP.toast('اول API Key رو وارد کن');
       return;
     }
 
-    var promptText = '';
-    var imageFile = null;
+    var promptText = (document.getElementById('videoPrompt') || {}).value || '';
+    promptText = promptText.trim();
 
-    if (this._mode === 'text') {
-      promptText = (document.getElementById('videoPrompt') || {}).value || '';
-      promptText = promptText.trim();
-      if (!promptText) {
-        APP.toast('اول متن رو بنویس');
-        APP.vibrate(30);
-        return;
-      }
-    } else {
-      if (!this._file) {
-        APP.toast('اول یه عکس انتخاب کن');
-        APP.vibrate(30);
-        return;
-      }
-      imageFile = this._file;
-      promptText = (document.getElementById('videoImagePrompt') || {}).value || '';
-      promptText = promptText.trim();
+    if (!promptText) {
+      APP.toast('اول متن رو بنویس');
+      APP.vibrate(30);
+      return;
     }
 
     btn.disabled = true;
@@ -119,66 +149,60 @@ var VIDEO = {
       if (result) result.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
 
-    // لودینگ پویا
     this._loader = APP.startLoading('videoResult', {
-      title: imageFile ? 'در حال تحلیل عکس...' : 'در حال ساخت ویدیو...',
-      sub: 'ممکنه ۱ تا ۲ دقیقه طول بکشه',
-      duration: 120000,
-      maxReal: 85
+      title: 'در حال ارسال درخواست...',
+      sub: 'ممکنه ۱ تا ۳ دقیقه طول بکشه',
+      duration: 180000,
+      maxReal: 90
     });
 
     try {
-      var finalPrompt = promptText;
-
-      if (imageFile) {
-        try {
-          if (this._loader) this._loader.setProgress(15);
-          var description = await this._describeImage(imageFile);
-          if (description) {
-            finalPrompt = description;
-            if (promptText) finalPrompt += '. ' + promptText;
-          }
-        } catch(descErr) {
-          finalPrompt = promptText || 'animated scene from this image';
-        }
-
-        if (this._loader) {
-          this._loader.setTitle('در حال ساخت ویدیو...');
-          this._loader.setProgress(25);
-        }
-      }
-
-      // ============ درخواست با timeout ============
-      var self = this;
-      var videoElement = await new Promise(function(resolve, reject) {
-        var done = false;
-
-        self._timeoutId = setTimeout(function() {
-          if (!done) {
-            done = true;
-            reject(new Error('زمان ساخت ویدیو تموم شد. لطفاً بعداً امتحان کن.'));
-          }
-        }, 120000); // ۲ دقیقه
-
-        puter.ai.txt2vid(finalPrompt).then(function(res) {
-          if (!done) {
-            done = true;
-            clearTimeout(self._timeoutId);
-            resolve(res);
-          }
-        }).catch(function(err) {
-          if (!done) {
-            done = true;
-            clearTimeout(self._timeoutId);
-            reject(err);
-          }
-        });
+      // ============ ۱. ایجاد درخواست ============
+      var createRes = await fetch(this.API_BASE + '/videos/generations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + this._apiKey
+        },
+        body: JSON.stringify({
+          model: this.MODEL,
+          prompt: promptText,
+          duration: 5,
+          aspect_ratio: '16:9'
+        })
       });
 
-      var url = this._extractUrl(videoElement);
-      if (!url) throw new Error('ویدیویی تولید نشد');
+      if (!createRes.ok) {
+        var errData = await createRes.json().catch(function() { return {}; });
+        var errMsg = 'خطا ' + createRes.status;
+        if (errData && errData.error) {
+          errMsg = errData.error.message || errData.error;
+        } else if (errData && errData.message) {
+          errMsg = errData.message;
+        }
+        throw new Error(errMsg);
+      }
 
-      this._lastUrl = url;
+      var createData = await createRes.json();
+      console.log('Task created:', createData);
+
+      var videoId = createData.id || createData.video_id || createData.task_id || (createData.data && createData.data.id);
+      if (!videoId) throw new Error('شناسهٔ ویدیو دریافت نشد');
+
+      this._videoId = videoId;
+
+      if (this._loader) {
+        this._loader.setTitle('در حال پردازش...');
+        this._loader.setSub('ممکنه ۱ تا ۳ دقیقه طول بکشه');
+        this._loader.setProgress(20);
+      }
+
+      // ============ ۲. Polling ============
+      var videoUrl = await this._pollVideoStatus(videoId);
+
+      if (!videoUrl) throw new Error('ویدیو آماده نشد');
+
+      this._lastUrl = videoUrl;
 
       if (this._loader) {
         this._loader.setTitle('تمام شد!');
@@ -186,7 +210,7 @@ var VIDEO = {
       }
       await this._delay(500);
 
-      this._showResult(result, url);
+      this._showResult(result, videoUrl);
 
       APP.toast('ویدیو ساخته شد');
       APP.vibrate(40);
@@ -194,66 +218,96 @@ var VIDEO = {
     } catch (err) {
       console.error('video error:', err);
       if (this._loader) this._loader.stop();
-      if (this._timeoutId) clearTimeout(this._timeoutId);
-
       var msg = err.message || 'خطای ناشناخته';
-      if (msg.length > 100) msg = msg.substring(0, 100) + '...';
-
+      if (msg.length > 120) msg = msg.substring(0, 120) + '...';
       APP.showError('videoResult',
         '⚠️ ' + msg + '\n\n' +
         'راه‌حل:\n' +
-        '• بعداً دوباره امتحان کن\n' +
-        '• از پرامپت کوتاه‌تر استفاده کن\n' +
-        '• پنل «عکس» سریع‌تره');
-      APP.toast('خطا در ساخت');
+        '• VPN رو روشن کن\n' +
+        '• API Key رو چک کن\n' +
+        '• بعداً دوباره امتحان کن');
+      APP.toast('خطا');
       APP.vibrate(50);
     } finally {
       btn.disabled = false;
       this._loader = null;
-      this._timeoutId = null;
+      this._clearTimers();
     }
   },
 
-  _describeImage: async function(file) {
-    try {
-      var base64 = await new Promise(function(resolve, reject) {
-        var reader = new FileReader();
-        reader.onload = function() { resolve(reader.result); };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+  _pollVideoStatus: async function(videoId) {
+    var self = this;
+    var maxAttempts = 40;
+    var attempt = 0;
 
-      var response = await puter.ai.chat(
-        'Describe this image in detail, in English, in about 40 words. Only return the description.',
-        base64
-      );
+    return new Promise(function(resolve, reject) {
+      var poll = async function() {
+        attempt++;
 
-      var text = '';
-      if (typeof response === 'string') text = response;
-      else if (response && response.message && response.message.content) {
-        var c = response.message.content;
-        text = Array.isArray(c) ? c.map(function(x) { return x.text || x; }).join(' ') : c;
-      } else if (response && response.text) text = response.text;
-      else if (response && response.toString) text = response.toString();
+        if (attempt > maxAttempts) {
+          reject(new Error('زمان ساخت ویدیو تموم شد'));
+          return;
+        }
 
-      return (text || '').trim().substring(0, 300);
-    } catch (e) {
-      return null;
-    }
+        try {
+          var res = await fetch(self.API_BASE + '/videos/generations/' + videoId, {
+            method: 'GET',
+            headers: {
+              'Authorization': 'Bearer ' + self._apiKey
+            }
+          });
+
+          if (!res.ok) {
+            if (res.status === 404 || res.status === 400) {
+              self._pollTimer = setTimeout(poll, 5000);
+              return;
+            }
+            throw new Error('خطا در بررسی وضعیت');
+          }
+
+          var data = await res.json();
+          console.log('Poll #' + attempt + ':', data.status || data.state);
+
+          var progress = 20 + Math.min(65, (attempt / maxAttempts) * 65);
+          if (self._loader) {
+            self._loader.setProgress(progress);
+            self._loader.setTitle('در حال پردازش...');
+            self._loader.setSub('ممکنه ۱ تا ۳ دقیقه طول بکشه');
+          }
+
+          var status = data.status || data.state;
+
+          if (status === 'completed' || status === 'succeeded' || status === 'success') {
+            var url = data.video_url || data.url || (data.output && data.output[0]) || (data.data && data.data[0] && data.data[0].url);
+            if (url) {
+              resolve(url);
+              return;
+            }
+          }
+
+          if (status === 'failed' || status === 'error') {
+            var errMsg = data.error || (data.error_message) || 'ساخت ویدیو شکست خورد';
+            reject(new Error(errMsg));
+            return;
+          }
+
+          self._pollTimer = setTimeout(poll, 5000);
+
+        } catch (err) {
+          console.warn('Poll error:', err);
+          self._pollTimer = setTimeout(poll, 5000);
+        }
+      };
+
+      poll();
+    });
   },
 
-  _extractUrl: function(el) {
-    if (!el) return null;
-    if (typeof el === 'string') return el;
-    if (el.src) return el.src;
-    if (el.url) return el.url;
-    if (el.querySelector) {
-      var v = el.querySelector('video');
-      if (v) return v.src;
-      var s = el.querySelector('source');
-      if (s) return s.src;
+  _clearTimers: function() {
+    if (this._pollTimer) {
+      clearTimeout(this._pollTimer);
+      this._pollTimer = null;
     }
-    return null;
   },
 
   _showResult: function(container, url) {
