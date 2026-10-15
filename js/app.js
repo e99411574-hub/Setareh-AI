@@ -1,154 +1,221 @@
-// ===== js/app.js — Setareh AI =====
+/* ═══════════════════════════════════════════════════
+   Setareh AI — app.js
+   Splash، تم، سایدبار، Overlay
+   ═══════════════════════════════════════════════════ */
 
-var APP = {
-  version: '2.0.0',
+const APP = {
 
-  // ============ راه‌اندازی ============
-  init: function() {
-    console.log('🚀 APP.init شروع');
-
-    // تم
+  /* ─── Init ─── */
+  init() {
+    this.hideSplash();
     this.initTheme();
-
-    // دکمهٔ تم
-    var themeBtn = document.getElementById('themeBtn');
-    if (themeBtn) {
-      themeBtn.addEventListener('click', this.toggleTheme.bind(this));
-      console.log('✅ دکمهٔ تم');
-    }
-
-    // دکمهٔ منو
-    var menuBtn = document.getElementById('menuBtn');
-    if (menuBtn) {
-      menuBtn.addEventListener('click', function() {
-        var sidebar = document.getElementById('sidebar');
-        var overlay = document.getElementById('sidebarOverlay');
-        if (sidebar) sidebar.classList.add('open');
-        if (overlay) overlay.classList.add('open');
-        if (typeof CHAT !== 'undefined' && CHAT.renderSidebar) {
-          CHAT.renderSidebar();
-        }
-      });
-      console.log('✅ دکمهٔ منو');
-    }
-
-    // overlay منو
-    var overlay = document.getElementById('sidebarOverlay');
-    if (overlay) {
-      overlay.addEventListener('click', function() {
-        var sidebar = document.getElementById('sidebar');
-        if (sidebar) sidebar.classList.remove('open');
-        overlay.classList.remove('open');
-      });
-      console.log('✅ overlay');
-    }
-
-    console.log('✅ APP.init تموم شد');
+    this.initSidebar();
+    this.initOverlay();
+    this.initSuggestions();
+    console.log('[APP] ✅ initialized');
   },
 
-  // ============ تم ============
-  initTheme: function() {
-    var saved = localStorage.getItem('setareh_theme') || 'dark';
-    document.body.setAttribute('data-theme', saved);
-    this.updateThemeIcon(saved);
+  /* ═══════════════════════════════════════════════════
+     Splash Screen
+     ═══════════════════════════════════════════════════ */
+
+  hideSplash() {
+    const splash = document.getElementById('splash');
+    if (!splash) return;
+
+    /* اگه قبلاً دیده شده، سریع مخفی کن */
+    const seen = sessionStorage.getItem('setareh_splash_seen');
+    const delay = seen ? 200 : 1400;
+
+    setTimeout(() => {
+      splash.classList.add('hide');
+      sessionStorage.setItem('setareh_splash_seen', '1');
+      setTimeout(() => {
+        splash.style.display = 'none';
+      }, 600);
+    }, delay);
   },
 
-  toggleTheme: function() {
-    var current = document.body.getAttribute('data-theme') || 'dark';
-    var next = current === 'dark' ? 'light' : 'dark';
-    document.body.setAttribute('data-theme', next);
-    localStorage.setItem('setareh_theme', next);
-    this.updateThemeIcon(next);
-    this.vibrate(15);
-  },
+  /* ═══════════════════════════════════════════════════
+     تم (روشن/تیره)
+     ═══════════════════════════════════════════════════ */
 
-  updateThemeIcon: function(theme) {
-    var btn = document.getElementById('themeBtn');
+  initTheme() {
+    const btn = document.getElementById('themeBtn');
     if (!btn) return;
-    if (theme === 'dark') {
-      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>';
-    } else {
-      btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+
+    /* بارگذاری تم ذخیره‌شده */
+    let theme = localStorage.getItem('setareh_theme');
+
+    /* اگه کاربر قبلاً انتخاب نکرده → از سیستم بگیر */
+    if (!theme) {
+      const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+      theme = prefersLight ? 'light' : 'dark';
     }
-  },
 
-  // ============ Toast ============
-  toast: function(msg, ms) {
-    var el = document.getElementById('toast');
-    if (!el) return;
-    el.textContent = msg;
-    el.classList.add('on');
-    clearTimeout(window._toastTimer);
-    window._toastTimer = setTimeout(function() {
-      el.classList.remove('on');
-    }, ms || 3000);
-  },
+    this.applyTheme(theme);
 
-  // ============ لرزش ============
-  vibrate: function(ms) {
-    if (navigator.vibrate) {
-      try { navigator.vibrate(ms || 20); } catch(e) {}
-    }
-  },
+    /* کلیک روی دکمه → تغییر تم */
+    btn.onclick = () => {
+      const current = document.documentElement.getAttribute('data-theme') || 'dark';
+      const next = current === 'dark' ? 'light' : 'dark';
+      this.applyTheme(next);
+      localStorage.setItem('setareh_theme', next);
+      this.toast(next === 'dark' ? '🌙 حالت شب' : '☀️ حالت روز');
+    };
 
-  // ============ دانلود ============
-  downloadFile: function(url, filename) {
-    try {
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = filename || 'setareh-' + Date.now();
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      this.toast('✅ دانلود شروع شد');
-      this.vibrate(20);
-    } catch(e) {
-      console.error('download error:', e);
-      this.toast('❌ خطا در دانلود');
-    }
-  },
-
-  // ============ escape ============
-  esc: function(s) {
-    if (!s) return '';
-    return String(s).replace(/[&<>"']/g, function(c) {
-      return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+    /* گوش دادن به تغییر تم سیستم (اگه کاربر انتخاب نکرده) */
+    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', (e) => {
+      if (!localStorage.getItem('setareh_theme')) {
+        this.applyTheme(e.matches ? 'light' : 'dark');
+      }
     });
-  }
+  },
+
+  applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+
+    /* رنگ نوار وضعیت مرورگر */
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute('content', theme === 'light' ? '#f5f6fa' : '#0e0e12');
+    }
+  },
+
+  /* ═══════════════════════════════════════════════════
+     سایدبار (موبایل)
+     ═══════════════════════════════════════════════════ */
+
+  initSidebar() {
+    const toggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('overlay');
+
+    if (!toggle || !sidebar) return;
+
+    toggle.onclick = () => {
+      const isOpen = sidebar.classList.contains('open');
+      if (isOpen) {
+        sidebar.classList.remove('open');
+        overlay?.classList.remove('show');
+      } else {
+        sidebar.classList.add('open');
+        overlay?.classList.add('show');
+      }
+    };
+  },
+
+  /* ═══════════════════════════════════════════════════
+     Overlay
+     ═══════════════════════════════════════════════════ */
+
+  initOverlay() {
+    const overlay = document.getElementById('overlay');
+    if (!overlay) return;
+
+    overlay.onclick = () => {
+      const sidebar = document.getElementById('sidebar');
+      sidebar?.classList.remove('open');
+      overlay.classList.remove('show');
+
+      /* بستن هر مودال باز */
+      document.querySelectorAll('.modal.show').forEach(m => {
+        m.classList.remove('show');
+      });
+    };
+  },
+
+  /* ═══════════════════════════════════════════════════
+     کارت‌های پیشنهادی
+     ═══════════════════════════════════════════════════ */
+
+  initSuggestions() {
+    const cards = document.querySelectorAll('.suggestion-card');
+    if (!cards.length) return;
+
+    cards.forEach(card => {
+      card.onclick = () => {
+        const prompt = card.dataset.prompt;
+        if (!prompt) return;
+
+        const input = document.getElementById('inputBox');
+        if (input && window.CHAT) {
+          input.value = prompt;
+          CHAT.autoResize?.();
+          CHAT.updateSendState?.();
+          input.focus();
+
+          /* ارسال خودکار بعد از یه لحظه */
+          setTimeout(() => {
+            CHAT.handleSend?.();
+          }, 250);
+        }
+      };
+    });
+  },
+
+  /* ═══════════════════════════════════════════════════
+     Toast (کپی از CHAT برای مواقع اضطراری)
+     ═══════════════════════════════════════════════════ */
+
+  toast(msg) {
+    if (window.CHAT && typeof CHAT.toast === 'function') {
+      return CHAT.toast(msg);
+    }
+    const t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(this._t);
+    this._t = setTimeout(() => t.classList.remove('show'), 2200);
+  },
+
+  /* ═══════════════════════════════════════════════════
+     ضد-باگ: جلوگیری از زوم دو‌ضرب روی iOS
+     ═══════════════════════════════════════════════════ */
+
+  preventDoubleTapZoom() {
+    let lastTouch = 0;
+    document.addEventListener('touchend', (e) => {
+      const now = Date.now();
+      if (now - lastTouch <= 300) {
+        e.preventDefault();
+      }
+      lastTouch = now;
+    }, { passive: false });
+  },
 };
 
-window.APP = APP;
+/* ═══════════════════════════════════════════════════
+   راه‌اندازی
+   ═══════════════════════════════════════════════════ */
 
-// ============ راه‌اندازی خودکار ============
-window.addEventListener('DOMContentLoaded', function() {
-  // ۱. APP
-  try { APP.init(); } catch(e) { console.error('❌ APP.init:', e); }
-
-  // ۲. CHAT (جدا، بعد از APP)
+window.addEventListener('DOMContentLoaded', () => {
   try {
-    if (typeof CHAT !== 'undefined' && CHAT.init) {
-      CHAT.init();
-      console.log('✅ CHAT.init صدا زده شد');
-    } else {
-      console.warn('⚠️ CHAT پیدا نشد');
-    }
-  } catch(e) {
-    console.error('❌ CHAT.init:', e);
-    console.error('Stack:', e.stack);
+    APP.init();
+    APP.preventDoubleTapZoom();
+  } catch (err) {
+    console.error('[APP] init failed:', err);
+    /* اگه APP خراب شد، حداقل Splash مخفی شه */
+    const splash = document.getElementById('splash');
+    if (splash) splash.style.display = 'none';
   }
-
-  // ۳. نمایش welcome یا history
-  setTimeout(function() {
-    try {
-      if (typeof CHAT === 'undefined') return;
-      if (CHAT._history && CHAT._history.length > 0) {
-        CHAT.renderHistory();
-      } else if (CHAT._showWelcome) {
-        CHAT._showWelcome();
-      }
-    } catch(e) {
-      console.error('❌ render:', e);
-    }
-  }, 300);
 });
+
+/* ─── اگه DOMContentLoaded قبلاً اجرا شده ─── */
+if (document.readyState !== 'loading') {
+  setTimeout(() => {
+    if (!window._appInited) {
+      window._appInited = true;
+      try {
+        APP.init();
+      } catch (e) {
+        console.error('[APP] late init failed:', e);
+        const splash = document.getElementById('splash');
+        if (splash) splash.style.display = 'none';
+      }
+    }
+  }, 0);
+} else {
+  window._appInited = true;
+}
