@@ -56,7 +56,7 @@ html, body {
 }
 
 body {
-  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + 20px);
+  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom) + 80px);
   padding-top: calc(56px + env(safe-area-inset-top));
   transition: background 0.3s ease;
 }
@@ -854,7 +854,7 @@ textarea::placeholder, .text-input::placeholder {
 /* ضبط صدا */
 .voice-indicator {
   position: fixed;
-  bottom: calc(var(--nav-height) + 80px + env(safe-area-inset-bottom));
+  bottom: calc(var(--nav-height) + 100px + env(safe-area-inset-bottom));
   left: 16px;
   right: 16px;
   background: var(--bg-2);
@@ -918,11 +918,12 @@ textarea::placeholder, .text-input::placeholder {
   cursor: pointer;
 }
 
-/* پیوست‌ها */
+/* پیوست‌ها — داخل input bar مثل ChatGPT */
 .chat-attachments {
   display: flex;
-  gap: 8px;
-  padding: 8px 0;
+  gap: 4px;
+  flex-shrink: 0;
+  max-width: 130px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -933,9 +934,9 @@ textarea::placeholder, .text-input::placeholder {
 .attachment-item {
   position: relative;
   flex-shrink: 0;
-  width: 70px;
-  height: 70px;
-  border-radius: 12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   overflow: hidden;
   background: var(--bg-3);
   border: 1px solid var(--border);
@@ -956,19 +957,23 @@ textarea::placeholder, .text-input::placeholder {
 
 .attachment-item .rm-att {
   position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 20px;
-  height: 20px;
+  top: -3px;
+  right: -3px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.8);
+  background: var(--danger);
   color: #fff;
-  border: none;
-  font-size: 11px;
+  border: 2px solid var(--bg-2);
+  font-size: 9px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
+  line-height: 1;
+  z-index: 2;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 /* ============ نوار ارسال چت ============ */
@@ -986,8 +991,7 @@ textarea::placeholder, .text-input::placeholder {
   align-items: center;
   gap: 8px;
   z-index: 70;
-  max-width: 800px;
-  margin: 0 auto;
+    margin: 0 auto;
 }
 
 body[data-theme="light"] .chat-input-bar {
@@ -1153,7 +1157,7 @@ body[data-theme="light"] .bottom-nav {
 /* ============ Toast ============ */
 .toast {
   position: fixed;
-  bottom: calc(var(--nav-height) + 20px + env(safe-area-inset-bottom));
+  bottom: calc(var(--nav-height) + 90px + env(safe-area-inset-bottom));
   left: 50%;
   transform: translateX(-50%) translateY(100px);
   background: var(--bg-3);
