@@ -21,22 +21,17 @@
 
 <!-- ============ نوار بالا ============ -->
 <header class="top-bar">
-  <button class="icon-btn" id="menuBtn" aria-label="menu">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-      <line x1="3" y1="6" x2="21" y2="6"/>
-      <line x1="3" y1="12" x2="21" y2="12"/>
-      <line x1="3" y1="18" x2="21" y2="18"/>
-    </svg>
-  </button>
+  <button class="icon-btn" id="themeBtn" aria-label="theme"></button>
 
   <div class="top-title">
     <span class="top-logo">Setareh AI</span>
   </div>
 
-  <button class="icon-btn" id="themeBtn" aria-label="theme">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="4"/>
-      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+  <button class="icon-btn" id="menuBtn" aria-label="menu">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <line x1="3" y1="6" x2="21" y2="6"/>
+      <line x1="3" y1="12" x2="21" y2="12"/>
+      <line x1="3" y1="18" x2="21" y2="18"/>
     </svg>
   </button>
 </header>
@@ -159,8 +154,7 @@
       <button class="voice-stop" id="voiceStopBtn">متوقف کن</button>
     </div>
 
-    <div class="chat-attachments" id="chatAttachments"></div>
-
+    <!-- نوار ارسال — با attachments داخلش -->
     <div class="chat-input-bar">
       <button class="icon-btn" id="chatAttachBtn" title="آپلود">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -168,6 +162,7 @@
           <line x1="5" y1="12" x2="19" y2="12"/>
         </svg>
       </button>
+      <div class="chat-attachments" id="chatAttachments"></div>
       <input type="text" id="chatInput" placeholder="پیامت رو بنویس...">
       <button class="icon-btn voice-btn" id="chatVoiceBtn" title="ضبط صدا">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -395,4 +390,4 @@
 <script src="js/app.js"></script>
 
 </body>
-</html>
+      </html>
