@@ -1,837 +1,1049 @@
-// ===== js/chat.js — چت هوشمند + ساخت عکس (بخش ۱) =====
+/* ═══════════════════════════════════════════════════
+   Setareh AI — chat.js
+   مدیریت چت، سشن‌ها، پیام‌ها و Puter.js
+   ═══════════════════════════════════════════════════ */
 
-var CHAT = {
-  _busy: false,
-  _history: [],
-  _attachments: [],
-  _sessions: [],
-  _currentSessionId: null,
-  _recognition: null,
-  _recording: false,
+const CHAT = {
+  /* ─── State ─── */
+  sessions: [],
+  currentId: null,
+  isGenerating: false,
+  searchQuery: '',
+  attachments: [],
 
-  // کلیدواژه‌های تشخیص ساخت عکس
-  _imageTriggers: [
-    'عکس بساز', 'تصویر بساز', 'نقاشی کن', 'بکش', 'بساز عکس',
-    'یه عکس', 'یک عکس', 'یه تصویر', 'یک تصویر', 'عکس از',
-    'draw', 'generate image', 'create image', 'make an image',
-    'picture of', 'paint', 'image of'
-  ],
+  /* ─── DOM ─── */
+  el: {},
 
-  // ============ راه‌اندازی ============
-  init: function() {
-    var self = this;
-
-    var sendBtn = document.getElementById('chatSendBtn');
-    if (sendBtn) sendBtn.addEventListener('click', function() { self.send(); });
-
-    var input = document.getElementById('chatInput');
-    if (input) {
-      input.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' && !e.shiftKey) {
-          e.preventDefault();
-          self.send();
-        }
-      });
-    }
-
-    var attachBtn = document.getElementById('attachBtn');
-    var fileInput = document.getElementById('chatFileInput');
-    if (attachBtn && fileInput) {
-      attachBtn.addEventListener('click', function() { fileInput.click(); });
-      fileInput.addEventListener('change', function(e) { self.onFiles(e); });
-    }
-
-    var voiceBtn = document.getElementById('chatVoiceBtn');
-    if (voiceBtn) voiceBtn.addEventListener('click', function() { self.toggleVoice(); });
-
-    var voiceStopBtn = document.getElementById('voiceStopBtn');
-    if (voiceStopBtn) voiceStopBtn.addEventListener('click', function() { self.stopVoice(); });
-
-    // منوی کشویی
-    var menuBtn = document.getElementById('menuBtn');
-    var sidebar = document.getElementById('sidebar');
-    var overlay = document.getElementById('sidebarOverlay');
-    if (menuBtn && sidebar) {
-      menuBtn.addEventListener('click', function() {
-        sidebar.classList.add('open');
-        if (overlay) overlay.classList.add('open');
-        self.renderSidebar();
-      });
-    }
-    if (overlay) {
-      overlay.addEventListener('click', function() {
-        sidebar.classList.remove('open');
-        overlay.classList.remove('open');
-      });
-    }
-
-    // سشن‌ها
+  /* ─── Init ─── */
+  init() {
+    this.cacheDom();
     this.loadSessions();
 
-    console.log('💬 CHAT: آماده');
+    if (this.sessions.length === 0) {
+      this.createSession();
+    } else {
+      this.currentId = this.sessions[0].id;
+      this.render();
+    }
+
+    this.bindEvents();
+    console.log('[CHAT] ✅ initialized');
   },
 
-  // ============ ارسال پیام ============
-  send: async function() {
-    if (this._busy) return;
+  cacheDom() {
+    this.el = {
+      messages: document.getElementById('messages'),
+      welcome: document.getElementById('welcome'),
+      chatArea: document.getElementById('chatArea'),
+      chatList: document.getElementById('chatList'),
+      chatSearch: document.getElementById('chatSearch'),
+      headerTitle: document.getElementById('headerTitle'),
+      inputBox: document.getElementById('inputBox'),
+      sendBtn: document.getElementById('sendBtn'),
+      newChatBtn: document.getElementById('newChatBtn'),
+      attachBtn: document.getElementById('attachBtn'),
+      micBtn: document.getElementById('micBtn'),
+      fileInput: document.getElementById('fileInput'),
+      copyAllBtn: document.getElementById('copyAllBtn'),
+      exportBtn: document.getElementById('exportBtn'),
+    };
+  },
 
-    var input = document.getElementById('chatInput');
-    if (!input) return;
+  /* ═══════════════════════════════════════════════════
+     سشن‌ها (Sessions)
+     ═══════════════════════════════════════════════════ */
 
-    var text = (input.value || '').trim();
-    var attachments = this._attachments.slice();
+  createSession() {
+    const session = {
+      id: 'chat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      title: 'چت جدید',
+      pinned: false,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      messages: [],
+    };
 
-    if (!text && !attachments.length) return;
+    this.sessions.unshift(session);
+    this.currentId = session.id;
+    this.saveSessions();
+    this.render();
+    return session;
+  },
 
-    if (typeof puter === 'undefined' || !puter.ai) {
-      APP.toast('اتصال برقرار نیست');
+  getCurrentSession() {
+    return this.sessions.find(s => s.id === this.currentId);
+  },
+
+  switchSession(id) {
+    if (this.isGenerating) {
+      this.toast('صبر کن، در حال پاسخ‌دهی...');
+      return;
+    }
+    this.currentId = id;
+    this.render();
+    this.renderChatList();
+    this.closeSidebar();
+  },
+
+  deleteSession(id) {
+    const idx = this.sessions.findIndex(s => s.id === id);
+    if (idx === -1) return;
+
+    this.sessions.splice(idx, 1);
+
+    if (this.currentId === id) {
+      if (this.sessions.length === 0) {
+        this.createSession();
+        return;
+      }
+      this.currentId = this.sessions[0].id;
+    }
+
+    this.saveSessions();
+    this.render();
+    this.renderChatList();
+  },
+
+  togglePin(id) {
+    const s = this.sessions.find(x => x.id === id);
+    if (!s) return;
+    s.pinned = !s.pinned;
+    this.sortSessions();
+    this.saveSessions();
+    this.renderChatList();
+    this.toast(s.pinned ? '📌 پین شد' : 'از پین خارج شد');
+  },
+
+  renameSession(id, newTitle) {
+    const s = this.sessions.find(x => x.id === id);
+    if (!s) return;
+    s.title = (newTitle || 'بدون عنوان').trim().slice(0, 50);
+    s.updatedAt = Date.now();
+    this.saveSessions();
+    this.renderChatList();
+    this.updateHeaderTitle();
+  },
+
+  sortSessions() {
+    this.sessions.sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return b.updatedAt - a.updatedAt;
+    });
+  },
+
+  /* ═══════════════════════════════════════════════════
+     localStorage
+     ═══════════════════════════════════════════════════ */
+
+  saveSessions() {
+    try {
+      localStorage.setItem('setareh_sessions', JSON.stringify(this.sessions));
+      localStorage.setItem('setareh_current', this.currentId);
+    } catch (e) {
+      console.warn('[CHAT] save failed', e);
+    }
+  },
+
+  loadSessions() {
+    try {
+      const raw = localStorage.getItem('setareh_sessions');
+      if (raw) {
+        this.sessions = JSON.parse(raw) || [];
+        this.sortSessions();
+      }
+      const cur = localStorage.getItem('setareh_current');
+      if (cur && this.sessions.some(s => s.id === cur)) {
+        this.currentId = cur;
+      }
+    } catch (e) {
+      console.warn('[CHAT] load failed', e);
+      this.sessions = [];
+    }
+  },
+
+  /* ═══════════════════════════════════════════════════
+     Rendering
+     ═══════════════════════════════════════════════════ */
+
+  render() {
+    this.renderMessages();
+    this.renderChatList();
+    this.updateHeaderTitle();
+    this.updateWelcomeVisibility();
+  },
+
+  renderMessages() {
+    const s = this.getCurrentSession();
+    const box = this.el.messages;
+    if (!box) return;
+
+    box.innerHTML = '';
+
+    if (!s || s.messages.length === 0) return;
+
+    s.messages.forEach(msg => {
+      box.appendChild(this.buildMessageEl(msg));
+    });
+
+    this.scrollToBottom(false);
+  },
+
+  buildMessageEl(msg) {
+    const isUser = msg.role === 'user';
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ' + (isUser ? 'user' : 'ai');
+    wrap.dataset.id = msg.id;
+
+    /* آواتار */
+    const avatar = document.createElement('div');
+    avatar.className = 'msg-avatar';
+    avatar.textContent = isUser ? '👤' : 'س';
+
+    /* بدنه */
+    const body = document.createElement('div');
+    body.className = 'msg-body';
+
+    /* متا */
+    const meta = document.createElement('div');
+    meta.className = 'msg-meta';
+    const name = document.createElement('span');
+    name.className = 'msg-name';
+    name.textContent = isUser ? 'تو' : 'ستاره';
+    const time = document.createElement('span');
+    time.textContent = this.formatTime(msg.time);
+    meta.appendChild(name);
+    meta.appendChild(time);
+
+    /* محتوا */
+    const content = document.createElement('div');
+    content.className = 'msg-content';
+    this.renderContent(content, msg);
+
+    body.appendChild(meta);
+    body.appendChild(content);
+
+    /* اکشن‌ها */
+    if (!msg.pending) {
+      body.appendChild(this.buildActions(msg));
+    }
+
+    wrap.appendChild(avatar);
+    wrap.appendChild(body);
+    return wrap;
+  },
+
+  renderContent(container, msg) {
+    container.innerHTML = '';
+
+    /* عکس تولیدشده */
+    if (msg.image) {
+      const img = document.createElement('img');
+      img.src = msg.image;
+      img.alt = 'تصویر ساخته‌شده';
+      img.loading = 'lazy';
+      container.appendChild(img);
+    }
+
+    /* پیوست کاربر (عکس/ویدیو) */
+    if (msg.attachment) {
+      if (msg.attachment.type === 'image') {
+        const img = document.createElement('img');
+        img.src = msg.attachment.url;
+        img.alt = 'پیوست';
+        container.appendChild(img);
+      } else if (msg.attachment.type === 'video') {
+        const vid = document.createElement('video');
+        vid.src = msg.attachment.url;
+        vid.controls = true;
+        container.appendChild(vid);
+      }
+    }
+
+    /* متن */
+    if (msg.pending) {
+      const typing = document.createElement('div');
+      typing.className = 'typing';
+      typing.innerHTML = '<span></span><span></span><span></span>';
+      container.appendChild(typing);
       return;
     }
 
-    this._busy = true;
-    input.value = '';
-    this._attachments = [];
-    this.renderAttachments();
-
-    // حذف welcome
-    var welcome = document.getElementById('chatWelcome');
-    if (welcome) welcome.remove();
-
-    // نمایش پیام کاربر
-    this.appendMessage('user', text, attachments, this._history.length);
-
-    var userMsg = { role: 'user', content: text, attachments: attachments, time: Date.now() };
-    this._history.push(userMsg);
-    this._saveCurrentSession();
-    this._updateTitle();
-
-    // تشخیص درخواست ساخت عکس
-    var isImageReq = this._detectImageRequest(text);
-
-    // === Thinking indicator ===
-    var thinkId = 'think-' + Date.now();
-    var area = document.getElementById('chatArea');
-    var thinkEl = document.createElement('div');
-    thinkEl.className = 'msg ai';
-    thinkEl.id = thinkId;
-    thinkEl.innerHTML =
-      '<div class="msg-avatar">✦</div>' +
-      '<div class="msg-body">' +
-        '<div class="thinking-box">' +
-          '<div class="dots"><span></span><span></span><span></span></div>' +
-          '<span class="thinking-text">در حال فکر کردن...</span>' +
-        '</div>' +
-      '</div>';
-    if (area) {
-      area.appendChild(thinkEl);
-      area.scrollTop = area.scrollHeight;
-    }
-
-    try {
-      if (isImageReq) {
-        // === ساخت عکس ===
-        await this._generateImageResponse(text, thinkId);
-      } else {
-        // === پاسخ متنی ===
-        await this._generateTextResponse(text, attachments, thinkId);
-      }
-    } catch (err) {
-      console.error('chat error:', err);
-      var t = document.getElementById(thinkId);
-      if (t) t.remove();
-      var msg = err.message || 'خطای ناشناخته';
-      if (msg.length > 100) msg = msg.substring(0, 100) + '...';
-      this.appendMessage('ai', '❌ خطا: ' + msg);
-      APP.toast('❌ خطا');
-    } finally {
-      this._busy = false;
+    if (msg.content) {
+      const p = document.createElement('div');
+      p.innerHTML = this.formatMarkdown(msg.content);
+      container.appendChild(p);
     }
   },
 
-  // ============ پاسخ متنی ============
-  _generateTextResponse: async function(text, attachments, thinkId) {
-    var puterPrompt = text;
-
-    // راهنما برای فکر کردن + پاسخ کوتاه
-    var systemPrompt =
-      'تو "ستاره" هستی، یه دستیار هوشمند فارسی‌زبان. ' +
-      'قوانین:\n' +
-      '۱. اول خوب فکر کن، بعد جواب بده.\n' +
-      '۲. جواب‌ها کوتاه، دقیق و مستقیم باشن.\n' +
-      '۳. از ایموجی کم استفاده کن.\n' +
-      '۴. فارسی روان بنویس.\n\n' +
-      'سوال کاربر: ' + text;
-
-    if (attachments && attachments.length) {
-      var fileInfo = attachments.map(function(a) {
-        return '[' + a.type + ': ' + a.name + ']';
-      }).join(', ');
-      puterPrompt = systemPrompt + '\n\nفایل‌های ضمیمه: ' + fileInfo;
-    } else {
-      puterPrompt = systemPrompt;
-    }
-
-    var response = await puter.ai.chat(puterPrompt);
-    var aiText = this._extractText(response);
-    if (!aiText) aiText = 'متأسفانه نتونستم جواب بدم.';
-
-    var t = document.getElementById(thinkId);
-    if (t) t.remove();
-
-    this.appendMessage('ai', aiText, null, this._history.length);
-    this._history.push({ role: 'assistant', content: aiText, time: Date.now() });
-    this._saveCurrentSession();
-  },
-
-  // ============ پاسخ ساخت عکس ============
-  _generateImageResponse: async function(text, thinkId) {
-    // تمیز کردن پرامپت
-    var prompt = this._cleanImagePrompt(text);
-
-    // ساخت عکس
-    var el = await puter.ai.txt2img(prompt);
-    var url = this._extractUrl(el);
-
-    var t = document.getElementById(thinkId);
-    if (t) t.remove();
-
-    if (!url) throw new Error('عکسی ساخته نشد');
-
-    // ساخت پیام با عکس
-    var area = document.getElementById('chatArea');
-    var wrap = document.createElement('div');
-    wrap.className = 'msg ai';
-
-    var html = '';
-    html += '<div class="msg-avatar">✦</div>';
-    html += '<div class="msg-body">';
-    html += '<div class="msg-content">';
-    html += '<div style="margin-bottom:8px;color:var(--text-2);font-size:13px;">🎨 عکس ساخته شد:</div>';
-    html += '<img src="' + url + '" alt="generated" onclick="window.open(\'' + url + '\',\'_blank\')" style="cursor:pointer;max-width:100%;border-radius:12px;">';
-    html += '<div style="margin-top:10px;font-size:12px;color:var(--text-3);">' + APP.esc(prompt) + '</div>';
-    html += '</div>';
-
-    // دکمه‌های اکشن
-    html += '<div class="msg-actions">';
-    html += '<button class="action-btn" onclick="CHAT._copyText(\'' + url + '\')" title="کپی لینک">' +
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
-      '</button>';
-    html += '<button class="action-btn" onclick="CHAT._downloadImage(\'' + url + '\')" title="دانلود">' +
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>' +
-      '</button>';
-    html += '<button class="action-btn" onclick="CHAT._regenerateImage(\'' + APP.esc(prompt) + '\')" title="دوباره">' +
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>' +
-      '</button>';
-    html += '</div>';
-
-    html += '</div>';
-    wrap.innerHTML = html;
-    if (area) {
-      area.appendChild(wrap);
-      area.scrollTop = area.scrollHeight;
-    }
-
-    var aiMsg = { role: 'assistant', content: '🎨 عکس: ' + prompt, imageUrl: url, time: Date.now() };
-    this._history.push(aiMsg);
-    this._saveCurrentSession();
-  },
-
-  // ============ پاکسازی پرامپت ============
-  _cleanImagePrompt: function(text) {
-    var t = text;
-    var removeWords = [
-      'یه عکس از', 'یک عکس از', 'یه تصویر از', 'یک تصویر از',
-      'عکس بساز از', 'تصویر بساز از', 'عکس بساز', 'تصویر بساز',
-      'نقاشی کن', 'بکش', 'یه عکس', 'یک عکس',
-      'draw', 'generate image of', 'generate image', 'create image of', 'create image',
-      'make an image of', 'make an image', 'picture of', 'image of'
-    ];
-    removeWords.forEach(function(w) {
-      var re = new RegExp(w, 'gi');
-      t = t.replace(re, '');
-    });
-    t = t.trim().replace(/^[،,.:؛;\s]+/, '').trim();
-    return t || text;
-  },
-
-  // ============ تشخیص درخواست عکس ============
-  _detectImageRequest: function(text) {
-    if (!text) return false;
-    var t = text.toLowerCase();
-    for (var i = 0; i < this._imageTriggers.length; i++) {
-      if (t.indexOf(this._imageTriggers[i].toLowerCase()) >= 0) return true;
-    }
-    return false;
-  },
-
-  // ============ استخراج متن ============
-  _extractText: function(response) {
-    if (!response) return '';
-    if (typeof response === 'string') return response;
-    if (response.message && response.message.content) {
-      var c = response.message.content;
-      if (Array.isArray(c)) {
-        return c.map(function(x) { return x.text || x; }).join('\n');
-      }
-      return c;
-    }
-    if (response.text) return response.text;
-    if (response.toString && typeof response.toString === 'function') {
-      var s = response.toString();
-      if (s !== '[object Object]') return s;
-    }
-    return '';
-  },
-
-  // ============ استخراج URL ============
-  _extractUrl: function(el) {
-    if (!el) return null;
-    if (typeof el === 'string') return el;
-    if (el.src) return el.src;
-    if (el.url) return el.url;
-    if (el.querySelector) {
-      var img = el.querySelector('img');
-      if (img) return img.src;
-    }
-    return null;
-  },
-
-  // ============ دانلود عکس ============
-  _downloadImage: function(url) {
-    APP.downloadFile(url, 'setareh-image-' + Date.now() + '.png');
-  },
-
-  // ============ بازتولید عکس ============
-  _regenerateImage: function(prompt) {
-    var input = document.getElementById('chatInput');
-    if (input) {
-      input.value = 'یه عکس از ' + prompt;
-      this.send();
-    }
-  }
-};
-
-window.CHAT = CHAT;
-// ============ ادامهٔ توابع CHAT (بخش ۲) ============
-
-Object.assign(CHAT, {
-
-  // ============ اضافه کردن پیام ============
-  appendMessage: function(type, text, attachments, msgIndex) {
-    var area = document.getElementById('chatArea');
-    if (!area) return;
-
-    var wrap = document.createElement('div');
-    wrap.className = 'msg ' + type;
-    if (typeof msgIndex === 'number') wrap.setAttribute('data-idx', msgIndex);
-
-    var avatar = document.createElement('div');
-    avatar.className = 'msg-avatar';
-    avatar.textContent = type === 'user' ? '👤' : '✦';
-    wrap.appendChild(avatar);
-
-    var body = document.createElement('div');
-    body.className = 'msg-body';
-
-    var content = document.createElement('div');
-    content.className = 'msg-content';
-
-    var html = '';
-    if (text) html += this._formatText(text);
-    if (attachments && attachments.length) {
-      attachments.forEach(function(a) {
-        if (a.type === 'image') html += '<br><img src="' + a.url + '" alt="">';
-        else if (a.type === 'video') html += '<br><video src="' + a.url + '" controls playsinline></video>';
-      });
-    }
-    content.innerHTML = html;
-    body.appendChild(content);
-
-    // دکمه‌های اکشن
-    var actions = this._buildActions(type, text, msgIndex);
-    if (actions) body.appendChild(actions);
-
-    wrap.appendChild(body);
-    area.appendChild(wrap);
-
-    setTimeout(function() { area.scrollTop = area.scrollHeight; }, 50);
-  },
-
-  // ============ ساخت دکمه‌های اکشن ============
-  _buildActions: function(type, text, msgIndex) {
-    var actions = document.createElement('div');
+  buildActions(msg) {
+    const actions = document.createElement('div');
     actions.className = 'msg-actions';
 
-    var self = this;
-    var hasText = text && text.length > 0;
+    /* کپی */
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'msg-action';
+    copyBtn.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+      </svg>
+      کپی`;
+    copyBtn.onclick = () => this.copyMessage(msg.content);
+    actions.appendChild(copyBtn);
 
-    if (hasText) {
-      var copyBtn = document.createElement('button');
-      copyBtn.className = 'action-btn';
-      copyBtn.title = 'کپی';
-      copyBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-      copyBtn.onclick = function(e) { e.stopPropagation(); self._copyText(text); };
-      actions.appendChild(copyBtn);
-    }
-
-    if (type === 'user' && hasText) {
-      var editBtn = document.createElement('button');
-      editBtn.className = 'action-btn';
-      editBtn.title = 'ویرایش';
-      editBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
-      editBtn.onclick = function(e) { e.stopPropagation(); self._editMessage(msgIndex, text); };
+    /* فقط برای پیام کاربر: ویرایش */
+    if (msg.role === 'user') {
+      const editBtn = document.createElement('button');
+      editBtn.className = 'msg-action';
+      editBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 20h9"/>
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+        ویرایش`;
+      editBtn.onclick = () => this.editMessage(msg);
       actions.appendChild(editBtn);
     }
 
-    if (type === 'ai') {
-      var regenBtn = document.createElement('button');
-      regenBtn.className = 'action-btn';
-      regenBtn.title = 'پاسخ جدید';
-      regenBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>';
-      regenBtn.onclick = function(e) { e.stopPropagation(); self._regenerate(msgIndex); };
+    /* فقط برای پیام AI: بازتولید */
+    if (msg.role === 'assistant') {
+      const regenBtn = document.createElement('button');
+      regenBtn.className = 'msg-action';
+      regenBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+        </svg>
+        بازتولید`;
+      regenBtn.onclick = () => this.regenerate(msg);
       actions.appendChild(regenBtn);
     }
 
-    return actions.children.length ? actions : null;
+    return actions;
   },
 
-  // ============ کپی ============
-  _copyText: function(text) {
-    var self = this;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(function() {
-        APP.toast('✅ کپی شد');
-        APP.vibrate(15);
-      }).catch(function() { self._fallbackCopy(text); });
-    } else {
-      this._fallbackCopy(text);
-    }
-  },
-
-  _fallbackCopy: function(text) {
-    try {
-      var ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
-      APP.toast('✅ کپی شد');
-    } catch(e) { APP.toast('❌ خطا در کپی'); }
-  },
-
-  // ============ ویرایش پیام ============
-  _editMessage: function(msgIndex, text) {
-    var input = document.getElementById('chatInput');
-    if (!input) return;
-    input.value = text;
-    input.focus();
-    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    APP.toast('✏️ پیام آماده ویرایش');
-    APP.vibrate(15);
-  },
-
-  // ============ بازتولید پاسخ ============
-  _regenerate: async function(msgIndex) {
-    if (this._busy) return;
-    if (typeof msgIndex !== 'number') return;
-
-    var userMsg = null;
-    for (var i = msgIndex - 1; i >= 0; i--) {
-      if (this._history[i] && this._history[i].role === 'user') { userMsg = this._history[i]; break; }
-    }
-    if (!userMsg) { APP.toast('❌ پیام پیدا نشد'); return; }
-
-    this._history = this._history.slice(0, msgIndex);
-
-    var area = document.getElementById('chatArea');
-    var allMsgs = area.querySelectorAll('.msg');
-    allMsgs.forEach(function(el, idx) { if (idx >= msgIndex) el.remove(); });
-
-    this._busy = true;
-    APP.vibrate(20);
-
-    var thinkId = 'think-' + Date.now();
-    var thinkEl = document.createElement('div');
-    thinkEl.className = 'msg ai';
-    thinkEl.id = thinkId;
-    thinkEl.innerHTML =
-      '<div class="msg-avatar">✦</div>' +
-      '<div class="msg-body"><div class="thinking-box">' +
-        '<div class="dots"><span></span><span></span><span></span></div>' +
-        '<span class="thinking-text">در حال فکر کردن...</span>' +
-      '</div></div>';
-    area.appendChild(thinkEl);
-
-    try {
-      var response = await puter.ai.chat(userMsg.content);
-      var aiText = this._extractText(response);
-      if (!aiText) aiText = 'متأسفانه نتونستم جواب بدم.';
-
-      var t = document.getElementById(thinkId);
-      if (t) t.remove();
-
-      this.appendMessage('ai', aiText, null, this._history.length);
-      this._history.push({ role: 'assistant', content: aiText, time: Date.now() });
-      this._saveCurrentSession();
-      APP.toast('✅ پاسخ جدید');
-    } catch (err) {
-      console.error(err);
-      var t = document.getElementById(thinkId);
-      if (t) t.remove();
-      APP.toast('❌ خطا');
-    } finally {
-      this._busy = false;
-    }
-  },
-
-  // ============ فرمت متن ============
-  _formatText: function(text) {
-    if (!text) return '';
-    var s = String(text);
-    s = s.replace(/[&<>]/g, function(c) {
-      return { '&':'&amp;','<':'&lt;','>':'&gt;' }[c];
-    });
-    s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    s = s.replace(/`(.+?)`/g, '<code>$1</code>');
-    s = s.replace(/\n/g, '<br>');
-    return s;
-  },
-
-  _esc: function(s) {
-    if (!s) return '';
-    return String(s).replace(/[&<>"']/g, function(c) {
-      return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
-    });
-  },
-
-  // ============ آپلود فایل ============
-  onFiles: function(e) {
-    var files = Array.from(e.target.files || []);
-    var self = this;
-    files.forEach(function(file) {
-      var type = file.type.startsWith('image/') ? 'image' :
-                 file.type.startsWith('video/') ? 'video' : null;
-      if (!type) return;
-      if (file.size > 20 * 1024 * 1024) { APP.toast('❌ فایل بزرگه'); return; }
-      var url = URL.createObjectURL(file);
-      self._attachments.push({ type: type, url: url, name: file.name, file: file });
-    });
-    this.renderAttachments();
-    e.target.value = '';
-    APP.vibrate(15);
-  },
-
-  renderAttachments: function() {
-    var box = document.getElementById('chatAttachments');
+  renderChatList() {
+    const box = this.el.chatList;
     if (!box) return;
-    if (!this._attachments.length) { box.innerHTML = ''; return; }
-    var self = this;
     box.innerHTML = '';
-    this._attachments.forEach(function(a, idx) {
-      var item = document.createElement('div');
-      item.className = 'attachment-item';
-      if (a.type === 'image') {
-        var img = document.createElement('img'); img.src = a.url; item.appendChild(img);
-      } else {
-        var v = document.createElement('video'); v.src = a.url; v.muted = true; item.appendChild(v);
-      }
-      var rm = document.createElement('button');
-      rm.className = 'rm-att';
-      rm.textContent = '✕';
-      rm.onclick = function() { self._attachments.splice(idx, 1); self.renderAttachments(); };
-      item.appendChild(rm);
+
+    const q = this.searchQuery.trim().toLowerCase();
+    const list = q
+      ? this.sessions.filter(s =>
+          s.title.toLowerCase().includes(q) ||
+          s.messages.some(m => (m.content || '').toLowerCase().includes(q))
+        )
+      : this.sessions;
+
+    if (list.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'padding:20px;text-align:center;color:var(--text-3);font-size:12px';
+      empty.textContent = q ? 'چیزی پیدا نشد' : 'هنوز چتی نداری';
+      box.appendChild(empty);
+      return;
+    }
+
+    list.forEach(s => {
+      const item = document.createElement('div');
+      item.className = 'chat-item';
+      if (s.id === this.currentId) item.classList.add('active');
+      if (s.pinned) item.classList.add('pinned');
+
+      const icon = document.createElement('div');
+      icon.className = 'chat-item-icon';
+      icon.textContent = '💬';
+
+      const text = document.createElement('div');
+      text.className = 'chat-item-text';
+      text.textContent = s.title;
+
+      const del = document.createElement('button');
+      del.className = 'chat-item-del';
+      del.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+        </svg>`;
+      del.onclick = (e) => {
+        e.stopPropagation();
+        this.confirmDelete(s.id);
+      };
+
+      item.appendChild(icon);
+      item.appendChild(text);
+      item.appendChild(del);
+
+      item.onclick = () => this.switchSession(s.id);
+
+      /* پین با double-click */
+      item.ondblclick = (e) => {
+        e.preventDefault();
+        this.togglePin(s.id);
+      };
+
       box.appendChild(item);
     });
   },
 
-  // ============ ضبط صدا ============
-  toggleVoice: function() {
-    if (this._recording) this.stopVoice();
-    else this.startVoice();
+  updateHeaderTitle() {
+    const s = this.getCurrentSession();
+    if (!this.el.headerTitle) return;
+    this.el.headerTitle.textContent = s ? s.title : 'ستاره';
   },
 
-  startVoice: function() {
-    var self = this;
-    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { APP.toast('❌ مرورگرت پشتیبانی نمی‌کند'); return; }
-    try {
-      var rec = new SR();
-      rec.lang = 'fa-IR';
-      rec.continuous = false;
-      rec.interimResults = true;
-
-      var indicator = document.getElementById('voiceIndicator');
-      var voiceText = document.getElementById('voiceText');
-      var voiceBtn = document.getElementById('chatVoiceBtn');
-      if (indicator) indicator.style.display = 'flex';
-      if (voiceBtn) voiceBtn.classList.add('recording');
-
-      rec.onresult = function(e) {
-        var interim = '', final = '';
-        for (var i = e.resultIndex; i < e.results.length; i++) {
-          var t = e.results[i][0].transcript;
-          if (e.results[i].isFinal) final += t;
-          else interim += t;
-        }
-        var text = final || interim;
-        if (voiceText) voiceText.textContent = text || 'در حال شنیدن...';
-        if (final) {
-          var input = document.getElementById('chatInput');
-          if (input) input.value = final;
-        }
-      };
-
-      rec.onerror = function(ev) {
-        if (ev.error === 'not-allowed') APP.toast('❌ میکروفون داده نشد');
-        else if (ev.error === 'no-speech') APP.toast('🔇 صدایی شنیده نشد');
-        self.stopVoice();
-      };
-      rec.onend = function() { self.stopVoice(); };
-
-      rec.start();
-      this._recognition = rec;
-      this._recording = true;
-      APP.vibrate(30);
-    } catch (err) { APP.toast('❌ خطا'); }
-  },
-
-  stopVoice: function() {
-    if (this._recognition) {
-      try { this._recognition.stop(); } catch(e) {}
-      this._recognition = null;
-    }
-    this._recording = false;
-    var indicator = document.getElementById('voiceIndicator');
-    var voiceBtn = document.getElementById('chatVoiceBtn');
-    if (indicator) indicator.style.display = 'none';
-    if (voiceBtn) voiceBtn.classList.remove('recording');
-    var input = document.getElementById('chatInput');
-    if (input && input.value.trim()) this.send();
-  },
-
-  // ============ سشن‌ها ============
-  loadSessions: function() {
-    try {
-      var saved = localStorage.getItem('setareh_sessions');
-      var currentId = localStorage.getItem('setareh_current_session');
-      this._sessions = saved ? JSON.parse(saved) : [];
-      this._currentSessionId = currentId || null;
-
-      if (!this._sessions.length) {
-        this.createNewSession();
-      } else {
-        var found = this._sessions.find(function(s) { return s.id === this._currentSessionId; }.bind(this));
-        if (!found) this._currentSessionId = this._sessions[0].id;
-        this._loadCurrentMessages();
-        this.renderHistory();
-      }
-    } catch(e) {
-      this._sessions = [];
-      this.createNewSession();
+  updateWelcomeVisibility() {
+    const s = this.getCurrentSession();
+    const has = s && s.messages.length > 0;
+    if (this.el.welcome) {
+      this.el.welcome.style.display = has ? 'none' : 'block';
     }
   },
 
-  saveSessions: function() {
-    try {
-      localStorage.setItem('setareh_sessions', JSON.stringify(this._sessions.slice(-30)));
-      localStorage.setItem('setareh_current_session', this._currentSessionId || '');
-    } catch(e) {}
-  },
-
-  _loadCurrentMessages: function() {
-    var s = this._sessions.find(function(x) { return x.id === this._currentSessionId; }.bind(this));
-    this._history = s ? (s.messages || []) : [];
-  },
-
-  createNewSession: function() {
-    var id = 'chat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-    var session = { id: id, title: 'چت جدید', messages: [], createdAt: Date.now() };
-    this._sessions.unshift(session);
-    this._currentSessionId = id;
-    this._history = [];
-    this.saveSessions();
-    return id;
-  },
-
-  newChat: function() {
-    this.createNewSession();
-    this._attachments = [];
-    this.renderAttachments();
-    this.renderHistory();
-    var sidebar = document.getElementById('sidebar');
-    var overlay = document.getElementById('sidebarOverlay');
-    if (sidebar) sidebar.classList.remove('open');
-    if (overlay) overlay.classList.remove('open');
-    APP.toast('✨ چت جدید');
-    APP.vibrate(20);
-  },
-
-  switchSession: function(id) {
-    this._currentSessionId = id;
-    this._loadCurrentMessages();
-    this.saveSessions();
-    this.renderHistory();
-    this.renderSidebar();
-    var sidebar = document.getElementById('sidebar');
-    var overlay = document.getElementById('sidebarOverlay');
-    if (sidebar) sidebar.classList.remove('open');
-    if (overlay) overlay.classList.remove('open');
-    APP.vibrate(15);
-  },
-
-  deleteSession: function(id) {
-    if (!confirm('این چت حذف بشه؟')) return;
-    this._sessions = this._sessions.filter(function(s) { return s.id !== id; }.bind(this));
-    if (this._currentSessionId === id) {
-      if (this._sessions.length) {
-        this._currentSessionId = this._sessions[0].id;
-        this._loadCurrentMessages();
-      } else {
-        this.createNewSession();
-      }
-    }
-    this.saveSessions();
-    this.renderSidebar();
-    this.renderHistory();
-    APP.toast('🗑️ حذف شد');
-  },
-
-  _updateTitle: function() {
-    var s = this._sessions.find(function(x) { return x.id === this._currentSessionId; }.bind(this));
-    if (!s) return;
-    if (s.messages && s.messages.length > 0 && s.title === 'چت جدید') {
-      var first = s.messages.find(function(m) { return m.role === 'user'; });
-      if (first && first.content) s.title = first.content.substring(0, 35);
-    }
-    this.saveSessions();
-  },
-
-  _saveCurrentSession: function() {
-    var s = this._sessions.find(function(x) { return x.id === this._currentSessionId; }.bind(this));
-    if (s) s.messages = this._history.slice(-100);
-    this.saveSessions();
-  },
-
-  // ============ Sidebar ============
-  renderSidebar: function() {
-    var list = document.getElementById('sidebarList');
-    if (!list) return;
-    var self = this;
-
-    if (!this._sessions.length) {
-      list.innerHTML = '<div class="sidebar-empty">هنوز چتی نداری</div>';
-      return;
-    }
-
-    list.innerHTML = '';
-    this._sessions.forEach(function(s) {
-      var item = document.createElement('div');
-      item.className = 'sidebar-item' + (s.id === self._currentSessionId ? ' active' : '');
-      item.onclick = function() { self.switchSession(s.id); };
-
-      var title = document.createElement('div');
-      title.className = 'sidebar-item-title';
-      title.textContent = s.title || 'چت جدید';
-      item.appendChild(title);
-
-      var del = document.createElement('button');
-      del.className = 'sidebar-item-del';
-      del.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>';
-      del.onclick = function(e) { e.stopPropagation(); self.deleteSession(s.id); };
-      item.appendChild(del);
-
-      list.appendChild(item);
-    });
-  },
-
-  // ============ رندر تاریخچه ============
-  renderHistory: function() {
-    var area = document.getElementById('chatArea');
+  scrollToBottom(smooth = true) {
+    const area = this.el.chatArea;
     if (!area) return;
-
-    if (!this._history.length) {
-      this._showWelcome();
-      return;
-    }
-
-    area.innerHTML = '';
-    var self = this;
-    this._history.forEach(function(m, i) {
-      if (m.imageUrl) {
-        self._renderImageMessage(m.imageUrl, m.content.replace('🎨 عکس: ', ''), i);
-      } else {
-        self.appendMessage(m.role === 'user' ? 'user' : 'ai', m.content, m.attachments, i);
-      }
-    });
-  },
-
-  _renderImageMessage: function(url, prompt, msgIndex) {
-    var area = document.getElementById('chatArea');
-    var wrap = document.createElement('div');
-    wrap.className = 'msg ai';
-    wrap.setAttribute('data-idx', msgIndex);
-
-    var html = '';
-    html += '<div class="msg-avatar">✦</div>';
-    html += '<div class="msg-body">';
-    html += '<div class="msg-content">';
-    html += '<div style="margin-bottom:8px;color:var(--text-2);font-size:13px;">🎨 عکس ساخته شد:</div>';
-    html += '<img src="' + url + '" alt="generated" onclick="window.open(\'' + url + '\',\'_blank\')" style="cursor:pointer;max-width:100%;border-radius:12px;">';
-    html += '<div style="margin-top:10px;font-size:12px;color:var(--text-3);">' + this._esc(prompt) + '</div>';
-    html += '</div>';
-    html += '<div class="msg-actions">';
-    html += '<button class="action-btn" onclick="CHAT._copyText(\'' + url + '\')" title="کپی">' +
-      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>' +
-      '</button>';
-    html += '</div>';
-    html += '</div>';
-    wrap.innerHTML = html;
-    area.appendChild(wrap);
-  },
-
-  _showWelcome: function() {
-    var area = document.getElementById('chatArea');
-    if (!area) return;
-    var self = this;
-
-    area.innerHTML =
-      '<div class="welcome" id="chatWelcome">' +
-        '<div class="welcome-logo">' +
-          '<div class="logo-orb"></div>' +
-          '<div class="logo-rings"><span></span><span></span><span></span></div>' +
-          '<div class="logo-star">✦</div>' +
-        '</div>' +
-        '<div class="welcome-title">سلام! من <span class="grad-text">ستاره</span> هستم</div>' +
-        '<div class="welcome-sub">چطور می‌تونم امروز کمکت کنم؟</div>' +
-        '<div class="suggestions">' +
-          '<button class="sug-card" data-prompt="یه عکس از یه گربه فضانورد بساز">' +
-            '<div class="sug-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg></div>' +
-            '<div class="sug-text"><div class="sug-title">ساخت عکس</div><div class="sug-desc">یه تصویر از تخیلت بساز</div></div>' +
-          '</button>' +
-          '<button class="sug-card" data-prompt="یه شعر کوتاه درباره پاییز بنویس">' +
-            '<div class="sug-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>' +
-            '<div class="sug-text"><div class="sug-title">نوشتن</div><div class="sug-desc">شعر، متن، ایمیل بنویس</div></div>' +
-          '</button>' +
-          '<button class="sug-card" data-prompt="کوانتوم رو خیلی ساده برام توضیح بده">' +
-            '<div class="sug-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>' +
-            '<div class="sug-text"><div class="sug-title">توضیح بده</div><div class="sug-desc">هر موضوعی رو ساده بفهم</div></div>' +
-          '</button>' +
-          '<button class="sug-card" data-prompt="چند تا ایده خلاقانه برای یه پروژه جدید بده">' +
-            '<div class="sug-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-7 7c0 2.38 1.19 4.47 3 5.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.26c1.81-1.27 3-3.36 3-5.74a7 7 0 0 0-7-7z"/></svg></div>' +
-            '<div class="sug-text"><div class="sug-title">ایده بده</div><div class="sug-desc">پروژه، کار، کسب‌وکار</div></div>' +
-          '</button>' +
-        '</div>' +
-      '</div>';
-
-    area.querySelectorAll('.sug-card').forEach(function(card) {
-      card.addEventListener('click', function() {
-        var prompt = this.getAttribute('data-prompt');
-        var input = document.getElementById('chatInput');
-        if (prompt && input) { input.value = prompt; self.send(); }
+    requestAnimationFrame(() => {
+      area.scrollTo({
+        top: area.scrollHeight,
+        behavior: smooth ? 'smooth' : 'auto',
       });
     });
+  },
+
+  /* ═══════════════════════════════════════════════════
+     Helpers
+     ═══════════════════════════════════════════════════ */
+
+  formatTime(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    const h = String(d.getHours()).padStart(2, '0');
+    const m = String(d.getMinutes()).padStart(2, '0');
+    return `${h}:${m}`;
+  },
+
+  formatMarkdown(text) {
+    if (!text) return '';
+    let html = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    /* code block */
+    html = html.replace(/```([\s\S]*?)```/g, (_, code) =>
+      `<pre><code>${code.trim()}</code></pre>`
+    );
+
+    /* inline code */
+    html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+
+    /* bold */
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+
+    /* italic */
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+    /* line breaks */
+    html = html.replace(/\n/g, '<br/>');
+
+    return html;
+  },
+
+  toast(msg) {
+    const t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(this._toastT);
+    this._toastT = setTimeout(() => t.classList.remove('show'), 2200);
+  },
+
+  closeSidebar() {
+    const sb = document.getElementById('sidebar');
+    const ov = document.getElementById('overlay');
+    if (sb) sb.classList.remove('open');
+    if (ov) ov.classList.remove('show');
+  },
+
+  /* placeholder برای قسمت ۲ */
+  bindEvents() {},
+  sendMessage() {},
+  copyMessage() {},
+  editMessage() {},
+  regenerate() {},
+  confirmDelete() {},
+};
+/* ═══════════════════════════════════════════════════
+   CHAT — بخش ۲: ارسال، Puter، رویدادها
+   ═══════════════════════════════════════════════════ */
+
+Object.assign(CHAT, {
+
+  /* ─── رویدادها ─── */
+  bindEvents() {
+    const { inputBox, sendBtn, newChatBtn, attachBtn, micBtn, fileInput,
+            copyAllBtn, exportBtn, chatSearch } = this.el;
+
+    /* ارسال */
+    if (sendBtn) sendBtn.onclick = () => this.handleSend();
+
+    /* Enter = ارسال، Shift+Enter = خط جدید */
+    if (inputBox) {
+      inputBox.addEventListener('input', () => {
+        this.autoResize();
+        this.updateSendState();
+      });
+      inputBox.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          this.handleSend();
+        }
+      });
+    }
+
+    /* چت جدید */
+    if (newChatBtn) newChatBtn.onclick = () => {
+      this.createSession();
+      this.closeSidebar();
+      setTimeout(() => inputBox && inputBox.focus(), 200);
+    };
+
+    /* پیوست */
+    if (attachBtn) attachBtn.onclick = () => fileInput && fileInput.click();
+    if (fileInput) fileInput.onchange = (e) => this.handleAttach(e);
+
+    /* ضبط صدا */
+    if (micBtn) micBtn.onclick = () => this.toggleMic();
+
+    /* کپی کل گفتگو */
+    if (copyAllBtn) copyAllBtn.onclick = () => this.copyAll();
+
+    /* خروجی PDF */
+    if (exportBtn) exportBtn.onclick = () => this.exportPDF();
+
+    /* جستجو */
+    if (chatSearch) {
+      chatSearch.oninput = (e) => {
+        this.searchQuery = e.target.value;
+        this.renderChatList();
+      };
+    }
+
+    /* ویرایش عنوان با دابل‌کلیک */
+    if (this.el.headerTitle) {
+      this.el.headerTitle.ondblclick = () => this.startRenameTitle();
+    }
+  },
+
+  /* ═══════════════════════════════════════════════════
+     ارسال پیام
+     ═══════════════════════════════════════════════════ */
+
+  handleSend() {
+    const text = (this.el.inputBox?.value || '').trim();
+    if (!text && this.attachments.length === 0) return;
+    if (this.isGenerating) {
+      this.toast('صبر کن، دارم جواب می‌دم...');
+      return;
+    }
+
+    this.sendMessage(text, null);
+    this.el.inputBox.value = '';
+    this.attachments = [];
+    this.autoResize();
+    this.updateSendState();
+  },
+
+  async sendMessage(text, attachment) {
+    const s = this.getCurrentSession();
+    if (!s) return;
+
+    /* پیام کاربر */
+    const userMsg = {
+      id: 'm_' + Date.now(),
+      role: 'user',
+      content: text,
+      attachment: attachment || (this.attachments[0] || null),
+      time: Date.now(),
+    };
+    s.messages.push(userMsg);
+    s.updatedAt = Date.now();
+
+    /* عنوان خودکار */
+    if (s.title === 'چت جدید' && text) {
+      s.title = text.slice(0, 32) + (text.length > 32 ? '…' : '');
+    }
+
+    this.saveSessions();
+    this.updateWelcomeVisibility();
+    this.updateHeaderTitle();
+    this.renderMessages();
+    this.renderChatList();
+
+    /* پیام در حال تایپ */
+    const pendingMsg = {
+      id: 'p_' + Date.now(),
+      role: 'assistant',
+      content: '',
+      pending: true,
+      time: Date.now(),
+    };
+    s.messages.push(pendingMsg);
+    this.renderMessages();
+
+    this.isGenerating = true;
+    this.updateSendState();
+
+    try {
+      /* بررسی درخواست ساخت عکس */
+      const wantsImage = /(عکس|تصویر|نقاشی|بکش|بساز.*عکس|image|draw|paint)/i.test(text);
+
+      if (wantsImage && !attachment) {
+        await this.generateImage(text, pendingMsg);
+      } else {
+        await this.generateText(text, attachment, pendingMsg);
+      }
+    } catch (err) {
+      console.error('[CHAT] error:', err);
+      pendingMsg.pending = false;
+      pendingMsg.content = '⚠️ متأسفم، خطایی رخ داد: ' + (err.message || 'نامشخص');
+    }
+
+    pendingMsg.pending = false;
+    this.isGenerating = false;
+    this.saveSessions();
+    this.renderMessages();
+    this.renderChatList();
+    this.updateSendState();
+  },
+
+  /* ═══════════════════════════════════════════════════
+     تولید متن با Puter
+     ═══════════════════════════════════════════════════ */
+
+  async generateText(prompt, attachment, pendingMsg) {
+    /* تاریخچه برای context */
+    const s = this.getCurrentSession();
+    const history = s.messages
+      .filter(m => !m.pending && m.content && !m.image)
+      .slice(-10)
+      .map(m => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.content,
+      }));
+
+    let finalPrompt = prompt;
+
+    /* اگه پیوست عکس داره */
+    if (attachment && attachment.type === 'image') {
+      finalPrompt = `[کاربر یک عکس پیوست کرده]\n\n${prompt || 'این عکس رو توضیح بده'}`;
+    }
+
+    /* فراخوانی Puter */
+    const response = await puter.ai.chat(finalPrompt, {
+      model: 'gpt-5-nano',
+    });
+
+    let text = '';
+    if (typeof response === 'string') {
+      text = response;
+    } else if (response?.message?.content) {
+      text = response.message.content;
+    } else if (response?.text) {
+      text = response.text;
+    } else if (response?.toString) {
+      text = response.toString();
+    }
+
+    pendingMsg.content = text || 'پاسخی دریافت نشد.';
+  },
+
+  /* ═══════════════════════════════════════════════════
+     ساخت عکس با Puter
+     ═══════════════════════════════════════════════════ */
+
+  async generateImage(prompt, pendingMsg) {
+    /* پاک‌سازی prompt */
+    const cleanPrompt = prompt
+      .replace(/(یه|یک)\s*عکس\s*(از|با)?/g, '')
+      .replace(/(بساز|بکش|درست کن)/g, '')
+      .trim() || prompt;
+
+    pendingMsg.content = '🎨 دارم تصویر می‌سازم...';
+
+    const result = await puter.ai.txt2img(cleanPrompt, {
+      model: 'dall-e-3',
+    });
+
+    let imgUrl = '';
+    if (typeof result === 'string') {
+      imgUrl = result;
+    } else if (result?.src) {
+      imgUrl = result.src;
+    } else if (result?.url) {
+      imgUrl = result.url;
+    } else if (result?.toString) {
+      imgUrl = result.toString();
+    }
+
+    if (!imgUrl || !imgUrl.startsWith('http')) {
+      throw new Error('تصویر ساخته نشد');
+    }
+
+    pendingMsg.image = imgUrl;
+    pendingMsg.content = '✨ اینم تصویری که خواستی:';
+
+    /* ذخیره در گالری */
+    this.saveToGallery(imgUrl, cleanPrompt);
+  },
+
+  saveToGallery(url, prompt) {
+    try {
+      const g = JSON.parse(localStorage.getItem('setareh_gallery') || '[]');
+      g.unshift({ url, prompt, time: Date.now() });
+      localStorage.setItem('setareh_gallery', JSON.stringify(g.slice(0, 100)));
+    } catch (e) {
+      console.warn('[GALLERY] save failed', e);
+    }
+  },
+
+  /* ═══════════════════════════════════════════════════
+     ویرایش پیام
+     ═══════════════════════════════════════════════════ */
+
+  editMessage(msg) {
+    const s = this.getCurrentSession();
+    if (!s) return;
+
+    const idx = s.messages.findIndex(m => m.id === msg.id);
+    if (idx === -1) return;
+
+    /* حذف پیام‌های بعد از این پیام */
+    s.messages.splice(idx);
+    this.saveSessions();
+    this.renderMessages();
+    this.renderChatList();
+
+    /* برگرداندن متن به input */
+    this.el.inputBox.value = msg.content || '';
+    this.autoResize();
+    this.updateSendState();
+    this.el.inputBox.focus();
+  },
+
+  /* ═══════════════════════════════════════════════════
+     بازتولید پاسخ
+     ═══════════════════════════════════════════════════ */
+
+  async regenerate(aiMsg) {
+    if (this.isGenerating) return;
+
+    const s = this.getCurrentSession();
+    if (!s) return;
+
+    const idx = s.messages.findIndex(m => m.id === aiMsg.id);
+    if (idx <= 0) return;
+
+    /* پیام کاربر قبلش */
+    const userMsg = s.messages[idx - 1];
+    if (!userMsg || userMsg.role !== 'user') return;
+
+    /* حذف AI و بعدی‌ها */
+    s.messages.splice(idx);
+
+    /* ارسال مجدد */
+    this.sendMessage(userMsg.content, userMsg.attachment);
+  },
+
+  /* ═══════════════════════════════════════════════════
+     کپی
+     ═══════════════════════════════════════════════════ */
+
+  async copyMessage(text) {
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      this.toast('✅ کپی شد');
+    } catch {
+      this.toast('❌ کپی نشد');
+    }
+  },
+
+  async copyAll() {
+    const s = this.getCurrentSession();
+    if (!s || s.messages.length === 0) {
+      this.toast('چیزی برای کپی نیست');
+      return;
+    }
+
+    const text = s.messages
+      .filter(m => !m.pending)
+      .map(m => {
+        const who = m.role === 'user' ? '👤 من' : '✨ ستاره';
+        const content = m.image ? `[تصویر: ${m.image}]` : m.content;
+        return `${who}:\n${content}`;
+      })
+      .join('\n\n──────────\n\n');
+
+    try {
+      await navigator.clipboard.writeText(text);
+      this.toast('✅ کل گفتگو کپی شد');
+    } catch {
+      this.toast('❌ کپی نشد');
+    }
+  },
+
+  /* ═══════════════════════════════════════════════════
+     خروجی PDF (چاپ)
+     ═══════════════════════════════════════════════════ */
+
+  exportPDF() {
+    const s = this.getCurrentSession();
+    if (!s || s.messages.length === 0) {
+      this.toast('چیزی برای خروجی نیست');
+      return;
+    }
+
+    const win = window.open('', '_blank');
+    const msgs = s.messages
+      .filter(m => !m.pending)
+      .map(m => {
+        const who = m.role === 'user' ? 'من' : 'ستاره';
+        const cls = m.role === 'user' ? 'user' : 'ai';
+        const content = m.image
+          ? `<img src="${m.image}" style="max-width:100%;border-radius:12px"/>`
+          : this.formatMarkdown(m.content || '');
+        return `<div class="m ${cls}"><b>${who}:</b><div>${content}</div></div>`;
+      })
+      .join('');
+
+    win.document.write(`
+      <!DOCTYPE html>
+      <html dir="rtl" lang="fa">
+      <head>
+        <meta charset="utf-8"/>
+        <title>${s.title} — ستاره</title>
+        <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;700&display=swap" rel="stylesheet"/>
+        <style>
+          body{font-family:Vazirmatn,sans-serif;padding:30px;line-height:1.8;color:#111;max-width:800px;margin:0 auto}
+          h1{font-size:20px;border-bottom:2px solid #4d6bfe;padding-bottom:10px;margin-bottom:20px}
+          .m{margin-bottom:16px;padding:12px 16px;border-radius:12px;background:#f5f6fa}
+          .m.user{background:#e8edff;border-right:4px solid #4d6bfe}
+          .m.ai{background:#f0f0f5;border-right:4px solid #8b5cf6}
+          .m b{color:#4d6bfe;display:block;margin-bottom:6px}
+          pre{background:#1a1a24;color:#fff;padding:12px;border-radius:8px;overflow-x:auto;direction:ltr;text-align:left}
+          code{background:#e0e0e8;padding:2px 6px;border-radius:4px;font-family:monospace}
+          pre code{background:none;padding:0}
+          img{max-width:100%;border-radius:10px;margin-top:8px}
+          @media print{body{padding:10px}}
+        </style>
+      </head>
+      <body>
+        <h1>${s.title}</h1>
+        ${msgs}
+        <script>setTimeout(()=>window.print(),800)<\/script>
+      </body>
+      </html>
+    `);
+    win.document.close();
+  },
+
+  /* ═══════════════════════════════════════════════════
+     تغییر نام چت
+     ═══════════════════════════════════════════════════ */
+
+  startRenameTitle() {
+    const el = this.el.headerTitle;
+    if (!el) return;
+
+    const s = this.getCurrentSession();
+    if (!s) return;
+
+    el.contentEditable = 'true';
+    el.textContent = s.title;
+    el.focus();
+
+    /* انتخاب همه متن */
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const finish = () => {
+      el.contentEditable = 'false';
+      this.renameSession(s.id, el.textContent);
+      this.updateHeaderTitle();
+    };
+
+    el.onblur = finish;
+    el.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        el.blur();
+      }
+      if (e.key === 'Escape') {
+        el.textContent = s.title;
+        el.blur();
+      }
+    };
+  },
+
+  /* ═══════════════════════════════════════════════════
+     پیوست فایل
+     ═══════════════════════════════════════════════════ */
+
+  handleAttach(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const type = file.type.startsWith('video') ? 'video' : 'image';
+      this.attachments = [{
+        type,
+        url: ev.target.result,
+        name: file.name,
+      }];
+
+      /* نمایش در input */
+      const preview = type === 'image'
+        ? `📷 [تصویر: ${file.name}] `
+        : `🎬 [ویدیو: ${file.name}] `;
+      this.el.inputBox.value = preview + this.el.inputBox.value;
+      this.updateSendState();
+      this.toast('✅ پیوست شد');
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  },
+
+  /* ═══════════════════════════════════════════════════
+     ضبط صدا (ساده)
+     ═══════════════════════════════════════════════════ */
+
+  async toggleMic() {
+    if (this._recording) {
+      this._recognition?.stop();
+      return;
+    }
+
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      this.toast('مرورگر از ضبط صدا پشتیبانی نمی‌کنه');
+      return;
+    }
+
+    const rec = new SR();
+    rec.lang = 'fa-IR';
+    rec.continuous = false;
+    rec.interimResults = true;
+
+    rec.onstart = () => {
+      this._recording = true;
+      this.toast('🎤 در حال ضبط...');
+      const micBtn = this.el.micBtn;
+      if (micBtn) micBtn.style.color = 'var(--danger)';
+    };
+
+    rec.onresult = (ev) => {
+      let text = '';
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        text += ev.results[i][0].transcript;
+      }
+      this.el.inputBox.value = text;
+      this.autoResize();
+      this.updateSendState();
+    };
+
+    rec.onend = () => {
+      this._recording = false;
+      const micBtn = this.el.micBtn;
+      if (micBtn) micBtn.style.color = '';
+    };
+
+    rec.onerror = (e) => {
+      console.warn('[MIC]', e.error);
+      this.toast('خطای ضبط صدا');
+      this._recording = false;
+    };
+
+    this._recognition = rec;
+    rec.start();
+  },
+
+  /* ═══════════════════════════════════════════════════
+     ابزارها
+     ═══════════════════════════════════════════════════ */
+
+  autoResize() {
+    const t = this.el.inputBox;
+    if (!t) return;
+    t.style.height = 'auto';
+    t.style.height = Math.min(t.scrollHeight, 160) + 'px';
+  },
+
+  updateSendState() {
+    const t = this.el.inputBox;
+    const btn = this.el.sendBtn;
+    if (!t || !btn) return;
+    const has = t.value.trim().length > 0 || this.attachments.length > 0;
+    btn.disabled = !has || this.isGenerating;
+  },
+
+  /* ═══════════════════════════════════════════════════
+     حذف با مودال
+     ═══════════════════════════════════════════════════ */
+
+  confirmDelete(id) {
+    const modal = document.getElementById('confirmModal');
+    const title = document.getElementById('modalTitle');
+    const text = document.getElementById('modalText');
+    const cancel = document.getElementById('modalCancel');
+    const confirm = document.getElementById('modalConfirm');
+
+    if (!modal) {
+      if (window.confirm('این چت حذف بشه؟')) this.deleteSession(id);
+      return;
+    }
+
+    const s = this.sessions.find(x => x.id === id);
+    if (title) title.textContent = 'حذف چت';
+    if (text) text.textContent = `«${s?.title || 'این چت'}» حذف بشه؟ این عمل برگشت‌پذیر نیست.`;
+
+    modal.classList.add('show');
+
+    const close = () => {
+      modal.classList.remove('show');
+      cancel.onclick = null;
+      confirm.onclick = null;
+    };
+
+    cancel.onclick = close;
+    confirm.onclick = () => {
+      this.deleteSession(id);
+      this.toast('🗑️ حذف شد');
+      close();
+    };
+  },
+
+  /* ─── گوش دادن به سرچ ─── */
+  setSearch(q) {
+    this.searchQuery = q;
+    this.renderChatList();
+  },
+});
+
+/* ═══════════════════════════════════════════════════
+   راه‌اندازی
+   ═══════════════════════════════════════════════════ */
+
+window.addEventListener('DOMContentLoaded', () => {
+  if (window.CHAT && typeof CHAT.init === 'function') {
+    try {
+      CHAT.init();
+    } catch (err) {
+      console.error('[CHAT] init failed:', err);
+    }
   }
 });
